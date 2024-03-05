@@ -38,7 +38,7 @@ jobs:
           - arch: x86_64
             host: x86_64-linux-musl
             capture_interface: eth0
-            zigflags: -target x86_64-linux-musl
+            zigflags: -target x86_64-linux-musl -fPIC
           - arch: i386
             host: i386-linux-gnu
             capture_interface: eth0
@@ -50,7 +50,7 @@ jobs:
           - arch: aarch64
             host: aarch64-linux-musl
             capture_interface: eth0
-            zigflags: -target aarch64-linux-musl
+            zigflags: -target aarch64-linux-musl -fPIC
           - arch: arm
             host: arm-linux-gnueabihf
             capture_interface: eth0
