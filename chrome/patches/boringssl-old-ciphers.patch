@@ -33,7 +33,7 @@ index e500dd76e..487945969 100644
  // permute extensions. For now, this is only implemented for the ClientHello.
  OPENSSL_EXPORT void SSL_set_permute_extensions(SSL *ssl, int enabled);
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
-index b13400097..a59db770c 100644
+index b13400097..8b457b873 100644
 --- a/ssl/extensions.cc
 +++ b/ssl/extensions.cc
 @@ -3313,6 +3313,7 @@ bool ssl_setup_extension_permutation(SSL_HANDSHAKE *hs) {
@@ -107,22 +107,17 @@ index b13400097..a59db770c 100644
  static bool add_padding_extension(CBB *cbb, uint16_t ext, size_t len) {
    CBB child;
    if (!CBB_add_u16(cbb, ext) ||  //
-@@ -3379,10 +3429,14 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
-     }
-   }
- 
-+  fprintf(stderr, "starting to numeratez\n");
-   for (size_t unpermuted = 0; unpermuted < kNumExtensions; unpermuted++) {
+@@ -3383,6 +3433,9 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
      size_t i = hs->extension_permutation.empty()
                     ? unpermuted
                     : hs->extension_permutation[unpermuted];
-+    fprintf(stderr, "extension %zu,", i);
-+    fprintf(stderr, "\n");
++    // fprintf(stderr, "extension %zu,", i);
++    // fprintf(stderr, "\n");
 +    if (i == 255) { continue; } // curl-impersonate: skip non-exist extensions
      const size_t len_before = CBB_len(&extensions);
      const size_t len_compressed_before = CBB_len(compressed.get());
      if (!kExtensions[i].add_clienthello(hs, &extensions, compressed.get(),
-@@ -3492,6 +3546,7 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
+@@ -3492,6 +3545,7 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
      size_t i = hs->extension_permutation.empty()
                     ? unpermuted
                     : hs->extension_permutation[unpermuted];
