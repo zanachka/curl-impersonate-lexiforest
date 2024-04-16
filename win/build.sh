@@ -14,7 +14,7 @@ mv boringssl-${BORING_SSL_COMMIT} boringssl
 
 cd boringssl
 
-patchfile=../../chrome/patches/boringssl-old-ciphers.patch
+patchfile=../../chrome/patches/boringssl.patch
 patch -p1 < $patchfile
 sed -i 's/-ggdb//g' CMakeLists.txt
 sed -i 's/-Werror//g' CMakeLists.txt
