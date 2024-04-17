@@ -108,7 +108,7 @@ signature:
       type: status_request
     - length: 0
       type: session_ticket
-    - length: 10
+    - length: 12
       supported_groups:
       - GREASE
       - 25497
