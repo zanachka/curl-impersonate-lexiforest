@@ -94,8 +94,10 @@ jobs:
           cd zstd-1.5.6
           make
           mkdir -p ${{ runner.temp }}/zstd/lib
-          # move libzstd to temp
+          mkdir -p ${{ runner.temp }}/zstd/include
+          # move libzstd to runner.temp
           cp lib/libzstd.a lib/libzstd.so.1.5.6 lib/libzstd.mk lib/libzstd.pc lib/libzstd.pc.in ${{ runner.temp }}/zstd/lib/
+          cp lib/zstd.h ${{ runner.temp }}/zstd/include/
 
       - name: Run configure script
         run: |
@@ -296,7 +298,7 @@ jobs:
       - name: Run configure script
         run: |
           mkdir ${{ runner.temp }}/install
-          ./configure --prefix=${{ runner.temp }}/install
+          ./configure LDFLAGS="-L$(brew --prefix zstd)/lib" CPPFLAGS="-I$(brew --prefix zstd)/include" --prefix=${{ runner.temp }}/install
 
       # Cache the build of BoringSSL, which is the longest part of the build
       # We must cache the .zip as well, otherwise the Makefile will
