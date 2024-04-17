@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Updates in this version:
-# 1. Added zstd encoding support
+# 1. Added zstd encoding support, see: https://chromestatus.com/feature/6186023867908096
 
 # Find the directory of this script
 dir=${0%/*}
@@ -15,7 +15,7 @@ dir=${0%/*}
     -H 'sec-ch-ua-mobile: ?0' \
     -H 'sec-ch-ua-platform: "macOS"' \
     -H 'Upgrade-Insecure-Requests: 1' \
-    -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' \
+    -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36' \
     -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7' \
     -H 'Sec-Fetch-Site: none' \
     -H 'Sec-Fetch-Mode: navigate' \

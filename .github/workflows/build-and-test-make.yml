@@ -74,9 +74,7 @@ jobs:
           # Needed to compile 'minicurl'
           sudo apt-get install libcurl4-openssl-dev
           # More dependencies for the tests
-          sudo apt-get install tcpdump nghttp2-server libnss3
-          # zstd
-          sudo apt-get install zstd libzstd-dev
+          sudo apt-get install tcpdump nghttp2-server
 
       - name: Build zlib
         run: |
@@ -89,15 +87,25 @@ jobs:
           # Make sure curl will link with libz.so.1 and not libz.so
           rm -f ${{ runner.temp }}/zlib/lib/libz.so
 
+      - name: Build libzstd
+        run: |
+          curl -LO https://github.com/facebook/zstd/releases/download/v1.5.6/zstd-1.5.6.tar.gz
+          tar xf zstd-1.5.6.tar.gz
+          cd zstd-1.5.6
+          make
+          mkdir -p ${{ runner.temp }}/zstd/lib
+          # move libzstd to temp
+          cp lib/libzstd.a lib/libzstd.so.1.5.6 lib/libzstd.mk lib/libzstd.pc lib/libzstd.pc.in ${{ runner.temp }}/zstd/lib/
+
       - name: Run configure script
         run: |
           mkdir ${{ runner.temp }}/install
           ./configure --prefix=${{ runner.temp }}/install \
                       --host=${{ matrix.host }} \
                       --with-zlib=${{ runner.temp }}/zlib \
+                      --with-zstd=${{ runner.temp }}/zstd \
                       --with-ca-path=/etc/ssl/certs \
                       --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
-                      --with-libnssckbi=/usr/lib/${{ matrix.host }}/nss
 
       # Cache the build of BoringSSL, which is the longest part of the build
       # We must cache the .zip as well, otherwise the Makefile will
@@ -194,9 +202,9 @@ jobs:
           ./configure --prefix=${{ runner.temp }}/install --enable-static \
                       --host=${{ matrix.host }} \
                       --with-zlib=${{ runner.temp }}/zlib \
+                      --with-zstd=${{ runner.temp }}/zstd \
                       --with-ca-path=/etc/ssl/certs \
                       --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
-                      --with-libnssckbi=/usr/lib/${{ matrix.host }}/nss
 
       - name: Rebuild statically
         run: |
