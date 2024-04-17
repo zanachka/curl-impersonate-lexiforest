@@ -46,13 +46,12 @@ build = @build@
 static_build = @static_build@
 # Whether the user provided a specific find for zlib
 with_zlib = @with_zlib@
+# Whether the user provided a specific find for libzstd
+with_zstd = @with_zstd@
 # Path to be passed to curl's --with-ca-bundle configure option.
 with_ca_bundle = @with_ca_bundle@
 # Path to be passed to curl's --with-ca-path configure option.
 with_ca_path = @with_ca_path@
-# Path to be passed to curl's --with-libnssckbi configure option (an option
-# added for curl-impersonate).
-with_libnssckbi = @with_libnssckbi@
 
 CC = @CC@
 CXX = @CXX@
@@ -317,7 +316,6 @@ $(CURL_VERSION)/.firefox: $(firefox_libs) $(CURL_VERSION).tar.xz $(CURL_VERSION)
 	  config_flags+=" --with-nghttp2=$(nghttp2_install_dir)"; \
 	  config_flags+=" --with-brotli=$(brotli_install_dir)"; \
 	  config_flags+=" --with-nss=$(nss_install_dir) --with-nss-deprecated"; \
-	  config_flags+=" --with-zstd"; \
 	  config_flags+=" --enable-websockets"; \
 	  config_flags+=" --enable-ipv6"; \
 	  config_flags+=" USE_CURL_SSLKEYLOGFILE=true"; \
@@ -360,7 +358,6 @@ $(CURL_VERSION)/.chrome: $(chrome_libs)	$(CURL_VERSION).tar.xz $(CURL_VERSION)/.
 	  config_flags="$$config_flags --with-nghttp2=$(nghttp2_install_dir)"; \
 	  config_flags="$$config_flags --with-brotli=$(brotli_install_dir)"; \
 	  config_flags="$$config_flags --with-openssl=$(boringssl_install_dir)"; \
-	  config_flags="$$config_flags --with-zstd"; \
 	  config_flags="$$config_flags --enable-websockets"; \
 	  config_flags="$$config_flags --enable-ech"; \
 	  config_flags="$$config_flags --enable-ipv6"; \
@@ -375,6 +372,11 @@ $(CURL_VERSION)/.chrome: $(chrome_libs)	$(CURL_VERSION).tar.xz $(CURL_VERSION)/.
 	    config_flags="$$config_flags --with-zlib=$(with_zlib)"; \
 	  else \
 	    config_flags+=" --with-zlib"; \
+	  fi; \
+	  if test -n "$(with_zstd)"; then \
+	    config_flags="$$config_flags --with-zstd=$(with_zstd)"; \
+	  else \
+	    config_flags+=" --with-zstd"; \
 	  fi; \
 	  if test -n "$(with_ca_bundle)"; then \
 		config_flags="$$config_flags --with-ca-bundle=$(with_ca_bundle)"; \
