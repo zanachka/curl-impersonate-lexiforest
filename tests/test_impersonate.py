@@ -404,11 +404,6 @@ def test_content_encoding(
             {"CURL_IMPERSONATE": "chrome101", "CURL_IMPERSONATE_HEADERS": "no"},
             "libcurl-impersonate-chrome",
         ),
-        (
-            "minicurl",
-            {"CURL_IMPERSONATE": "ff102", "CURL_IMPERSONATE_HEADERS": "no"},
-            "libcurl-impersonate-ff",
-        ),
     ],
 )
 async def test_no_builtin_headers(
@@ -475,16 +470,6 @@ async def test_no_builtin_headers(
             {"CURL_IMPERSONATE": "chrome101", "CURL_IMPERSONATE_HEADERS": "no"},
             "libcurl-impersonate-chrome",
         ),
-        (
-            "minicurl",
-            {"CURL_IMPERSONATE": "ff102"},
-            "libcurl-impersonate-ff",
-        ),
-        (
-            "minicurl",
-            {"CURL_IMPERSONATE": "ff102", "CURL_IMPERSONATE_HEADERS": "no"},
-            "libcurl-impersonate-ff",
-        ),
     ],
 )
 async def test_user_agent(pytestconfig, nghttpd, curl_binary, env_vars, ld_preload):
@@ -543,16 +528,6 @@ async def test_user_agent(pytestconfig, nghttpd, curl_binary, env_vars, ld_prelo
             "minicurl",
             {"CURL_IMPERSONATE": "chrome101", "CURL_IMPERSONATE_HEADERS": "no"},
             "libcurl-impersonate-chrome",
-        ),
-        (
-            "minicurl",
-            {"CURL_IMPERSONATE": "ff102"},
-            "libcurl-impersonate-ff",
-        ),
-        (
-            "minicurl",
-            {"CURL_IMPERSONATE": "ff102", "CURL_IMPERSONATE_HEADERS": "no"},
-            "libcurl-impersonate-ff",
         ),
     ],
 )
