@@ -87,7 +87,7 @@ RUN cd ${CURL_VERSION} && \
                 --enable-websockets \
                 --with-nghttp2=/build/${NGHTTP2_VERSION}/installed \
                 --with-brotli=/build/brotli-${BROTLI_VERSION}/build/installed \
-                --without-zstd \
+                --with-zstd \
                 --enable-ech \
                 --with-openssl=/build/boringssl/build \
                 LIBS="-pthread" \
@@ -116,7 +116,7 @@ RUN cd ${CURL_VERSION} && \
     ./configure --prefix=/build/install \
                 --with-nghttp2=/build/${NGHTTP2_VERSION}/installed \
                 --with-brotli=/build/brotli-${BROTLI_VERSION}/build/installed \
-                --without-zstd \
+                --with-zstd \
                 --enable-ech \
                 --with-openssl=/build/boringssl/build \
                 LIBS="-pthread" \
