@@ -171,6 +171,7 @@ jobs:
       - name: Create tar release files for libcurl-impersonate
         run: |
           cp ${{ runner.temp }}/zlib/lib/lib*.a ${{ runner.temp }}/install/lib
+          cp ${{ runner.temp }}/zstd/lib/lib*.a ${{ runner.temp }}/install/lib
           cp nghttp2*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           cp brotli*/out/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           cp boringssl/build/lib/lib*.a ${{ runner.temp }}/install/lib
