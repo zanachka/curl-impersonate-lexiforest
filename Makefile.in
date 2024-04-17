@@ -11,8 +11,6 @@ SUBJOBS := 4
 
 BROTLI_VERSION := 1.0.9
  # In case this is changed, update build-and-test-make.yml as well
-NSS_VERSION := nss-3.92
-NSS_URL := https://ftp.mozilla.org/pub/security/nss/releases/NSS_3_92_RTM/src/nss-3.92-with-nspr-4.35.tar.gz
  # In case this is changed, update build-and-test-make.yml as well
 BORING_SSL_COMMIT := d24a38200fef19150eef00cad35b138936c08767
 NGHTTP2_VERSION := nghttp2-1.56.0
@@ -21,15 +19,11 @@ CURL_VERSION := curl-8.5.0
 
 brotli_install_dir := $(abspath brotli-$(BROTLI_VERSION)/out/installed)
 brotli_static_libs := $(brotli_install_dir)/lib/libbrotlicommon-static.a $(brotli_install_dir)/lib/libbrotlidec-static.a
-nss_install_dir := $(abspath $(NSS_VERSION)/dist/Release)
-nss_static_libs := $(nss_install_dir)/lib/libnss_static.a
 boringssl_install_dir := $(abspath boringssl/build)
 boringssl_static_libs := $(boringssl_install_dir)/lib/libssl.a $(boringssl_install_dir)/lib/libcrypto.a
 nghttp2_install_dir := $(abspath $(NGHTTP2_VERSION)/installed)
 nghttp2_static_libs := $(nghttp2_install_dir)/lib/libnghttp2.a
 
-# Dependencies needed to compile the Firefox version
-firefox_libs := $(brotli_static_libs) $(nss_static_libs) $(nghttp2_static_libs)
 # Dependencies needed to compile the Chrome version
 chrome_libs := $(brotli_static_libs) $(boringssl_static_libs) $(nghttp2_static_libs)
 
@@ -115,7 +109,6 @@ chrome-clean: ## Clean build artifacts of the Chrome version. Use after re-runni
 
 clean: ## Remove all build artifacts, including dependencies
 	rm -Rf brotli-$(BROTLI_VERSION).tar.gz brotli-$(BROTLI_VERSION)
-	rm -Rf $(NSS_VERSION).tar.gz $(NSS_VERSION)
 	rm -Rf boringssl.zip boringssl
 	rm -Rf $(NGHTTP2_VERSION).tar.bz2 $(NGHTTP2_VERSION)
 	rm -Rf $(CURL_VERSION).tar.xz $(CURL_VERSION)
@@ -154,54 +147,6 @@ $(brotli_static_libs): brotli-$(BROTLI_VERSION).tar.gz
 	        ..
 
 	@cmake@ --build . --config Release --target install --parallel $(SUBJOBS)
-
-
-$(NSS_VERSION).tar.gz:
-	curl -L -o $(NSS_VERSION).tar.gz $(NSS_URL)
-
-$(nss_static_libs): $(NSS_VERSION).tar.gz
-	tar xf $(NSS_VERSION).tar.gz
-
-ifeq ($(host),$(build))
-	# Native build, use NSS' build script.
-	cd $(NSS_VERSION)/nss
-	./build.sh -o --disable-tests --static --python=python3 -j $(SUBJOBS)
-else
-	# We are cross compiling.
-	# Cross compiling NSS is not supported by its build script and is poorly
-	# documented. We need to compile NSPR manually and only then compile nss.
-	case $(host_cpu) in                        \
-	  *64*)                                    \
-	    use_64="1";                            \
-	    nspr_configure_flags="--enable-64bit"; \
-	    ;;                                     \
-	  *)                                       \
-	    use_64="0";                            \
-	    nspr_configure_flags="";               \
-	    ;;                                     \
-	esac
-
-	# Cross-compile nspr separately
-	cd $(NSS_VERSION)/nspr
-	./configure --prefix=$(nss_install_dir) \
-	            --disable-debug --enable-optimize \
-	            --target=$(host_alias) \
-	            $$nspr_configure_flags
-	$(MAKE) MAKEFLAGS=
-	$(MAKE) install MAKEFLAGS=
-
-	# Now we can run ./build.sh with the already built nspr
-	cd ../nss
-	CC=$(CC) CXX=$(CXX) CCC=$(CXX) \
-	   ./build.sh -o --disable-tests --static --python=python3 \
-	   --with-nspr=$(nss_install_dir)/include/nspr:$(nss_install_dir)/lib \
-	   --target=$(host_cpu) \
-	   -Duse_system_zlib=0 \
-	   -Dsign_libs=0
-endif
-	# Hack for macOS: Remove dynamic libraries to force the linker to use the
-	# static ones when linking curl.
-	rm -Rf $(nss_install_dir)/lib/*.dylib
 
 
 boringssl.zip:
@@ -282,17 +227,6 @@ $(CURL_VERSION).tar.xz:
 	curl -L "https://curl.se/download/$(CURL_VERSION).tar.xz" \
 		-o "$(CURL_VERSION).tar.xz"
 
-# Apply the "Firefox version" patches and mark using a dummy file
-$(CURL_VERSION)/.patched-ff: $(srcdir)/firefox/patches/curl-*.patch
-	rm -Rf $(CURL_VERSION)
-	tar -xf $(CURL_VERSION).tar.xz
-	cd $(CURL_VERSION)
-	for p in $^; do patch -p1 < $$p; done
-	# Re-generate the configure script
-	autoreconf -fi
-	touch .patched-ff
-	rm -f .patched-chrome
-
 # Apply the "Chorme version" patches and mark using a dummy file
 $(CURL_VERSION)/.patched-chrome: $(srcdir)/chrome/patches/curl-*.patch
 	rm -Rf $(CURL_VERSION)
@@ -302,49 +236,6 @@ $(CURL_VERSION)/.patched-chrome: $(srcdir)/chrome/patches/curl-*.patch
 	# Re-generate the configure script
 	autoreconf -fi
 	touch .patched-chrome
-	rm -f .patched-ff
-
-# This is a small hack that flags that curl was patched and configured in the "firefox" version
-$(CURL_VERSION)/.firefox: $(firefox_libs) $(CURL_VERSION).tar.xz $(CURL_VERSION)/.patched-ff
-	cd $(CURL_VERSION)
-
-	# Set up the configure flags to curl.
-	# If the user provided the --host flag to our configure script
-	# (for cross compilation), then pass it on to curl.
-	{ \
-	  config_flags="--prefix=@prefix@"; \
-	  config_flags+=" --with-nghttp2=$(nghttp2_install_dir)"; \
-	  config_flags+=" --with-brotli=$(brotli_install_dir)"; \
-	  config_flags+=" --with-nss=$(nss_install_dir) --with-nss-deprecated"; \
-	  config_flags+=" --enable-websockets"; \
-	  config_flags+=" --enable-ipv6"; \
-	  config_flags+=" USE_CURL_SSLKEYLOGFILE=true"; \
-	  if test "$(static_build)" = "yes"; then \
-	    config_flags+=" --enable-static --disable-shared"; \
-	  fi; \
-	  if test -n "$(host_alias)"; then \
-	    config_flags+=" --host=$(host_alias)"; \
-	  fi; \
-	  if test -n "$(with_zlib)"; then \
-	    config_flags+=" --with-zlib=$(with_zlib)"; \
-	  else \
-	    config_flags+=" --with-zlib"; \
-	  fi; \
-	  if test -n "$(with_libnssckbi)"; then \
-		config_flags+=" --with-libnssckbi=$(with_libnssckbi)"; \
-	  fi; \
-	  add_cflags="-I$(nss_install_dir)/../public/nss"; \
-	  add_cflags+=" -I$(nss_install_dir)/include/nspr"; \
-	}
-
-	echo "Configuring curl with: $$config_flags"
-
-	./configure $$config_flags CFLAGS="$(CFLAGS) $$add_cflags"
-	# Remove possible leftovers from a previous compilation
-	$(MAKE) clean MAKEFLAGS=
-	touch .firefox
-	# Remove the Chrome flag if it exists
-	rm -f .chrome
 
 # This is a small hack that flags that curl was patched and configured in the "chrome" version
 $(CURL_VERSION)/.chrome: $(chrome_libs)	$(CURL_VERSION).tar.xz $(CURL_VERSION)/.patched-chrome
@@ -394,5 +285,3 @@ $(CURL_VERSION)/.chrome: $(chrome_libs)	$(CURL_VERSION).tar.xz $(CURL_VERSION)/.
 	# Remove possible leftovers from a previous compilation
 	$(MAKE) clean MAKEFLAGS=
 	touch .chrome
-	# Remove the Firefox flag if it exists
-	rm -f .firefox
