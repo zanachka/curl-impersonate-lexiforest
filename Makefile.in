@@ -224,7 +224,7 @@ $(nghttp2_static_libs): $(NGHTTP2_VERSION).tar.bz2
 	$(MAKE) install MAKEFLAGS=
 
 $(CURL_VERSION).tar.gz:
-	curl -L "https://github.com/curl/curl/archive/$(CURL_VERSION).tar.gz" -o
+	curl -L "https://github.com/curl/curl/archive/$(CURL_VERSION).tar.gz" \
 		-o "$(CURL_VERSION).tar.gz"
 
 # Apply the "Chorme version" patches and mark using a dummy file
