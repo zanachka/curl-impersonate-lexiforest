@@ -2,7 +2,7 @@
 
 set -ex
 
-mkdir build/
+mkdir -p build/
 cd build/
 
 # Download and patch boringssl
@@ -33,12 +33,13 @@ export BROTLI_LIBS='-lbrotlidec -lbrotlicommon'
 export NGHTTP2_PATH=nghttp2_stub
 export LIBIDN2_PATH=idn2_stub
 export SSL=1
+export SSL_PATH=$PWD/boringssl
 export OPENSSL_PATH=$PWD/boringssl
 export OPENSSL_LIBPATH=$PWD/boringssl/lib
 export OPENSSL_LIBS='-lssl -lcrypto'
 
 
-CURL_VERSION=curl-8_5_0
+CURL_VERSION=curl-8_7_1
 
 curl -L https://github.com/curl/curl/archive/${CURL_VERSION}.zip -o curl.zip
 unzip -q -o curl.zip
@@ -52,21 +53,50 @@ cd curl
 patchfile=../../chrome/patches/curl-impersonate.patch
 patch -p1 < $patchfile
 
-sed -i 's/-shared/-s -static -shared/g' lib/Makefile.mk
-sed -i 's/-static/-s -static/g' src/Makefile.mk
-
-sed -i 's/-DUSE_NGHTTP2/-DUSE_NGHTTP2 -DNGHTTP2_STATICLIB/g' lib/Makefile.mk
-sed -i 's/-DUSE_NGHTTP2/-DUSE_NGHTTP2 -DNGHTTP2_STATICLIB/g' src/Makefile.mk
+# sed -i 's/-shared/-s -static -shared/g' lib/Makefile.mk
+# sed -i 's/-static/-s -static/g' src/Makefile.mk
+#
+# sed -i 's/-DUSE_NGHTTP2/-DUSE_NGHTTP2 -DNGHTTP2_STATICLIB/g' lib/Makefile.mk
+# sed -i 's/-DUSE_NGHTTP2/-DUSE_NGHTTP2 -DNGHTTP2_STATICLIB/g' src/Makefile.mk
 
 sed -i 's/-lidn2/-lidn2 -lunistring -liconv/g' lib/Makefile.mk
 sed -i 's/-lidn2/-lidn2 -lunistring -liconv/g' src/Makefile.mk
 
-mingw32-make -f Makefile.dist mingw32-clean
-mingw32-make -f Makefile.dist mingw32 -j CFLAGS="-DUSE_HTTP2=1 -DUSE_WEBSOCKETS=1 -DUSE_ECH=1 -Wno-unused-variable" CFG=-ssl-zlib-nghttp2-idn2-brotli-zstd-ipv6
+# print all options
+cmake -LAH
 
-mkdir -p ../dist
-mv lib/libcurl* ../dist/
-mv src/*.exe ../dist/
+cmake -B build -G "MinGW Makefiles" \
+    -DSSL_PATH=$PWD/boringssl \
+    -DOPENSSL_LIBS='-lssl -lcrypto' \
+    -DENABLE_IPV6=ON \
+    -DENABLE_UNICODE=ON \
+    -DUSE_NGHTTP2=ON \
+    -DENABLE_WEBSOCKETS=ON \
+    -DCURL_BROTLI=ON \
+    -DCURL_ZLIB=ON \
+    -DCURL_ZSTD=ON \
+    -DENABLE_IPV6=ON \
+    -DCURL_ENABLE_SSL=ON \
+    -DCURL_USE_OPENSSL=ON \
+    -DHAVE_BORINGSSL=1 \
+    -DUSE_ECH=ON \
+    -DHAVE_ECH=ON \
+    -DBUILD_STATIC_CURL=ON \
+    -DBUILD_STATIC_LIBS=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS=-Wno-unused-variable \
+
+cd build
+
+mingw32-make clean
+mingw32-make -j CFLAGS="-Wno-unused-variable" CFG=-ssl-zlib-nghttp2-idn2-brotli-zstd-ipv6
 
 cd ..
-dist/curl -V
+
+mkdir -p ../dist
+ls build
+mv build/lib/libcurl* ../dist/
+mv build/src/*.exe ../dist/
+
+cd ..
+dist/curl.exe -V

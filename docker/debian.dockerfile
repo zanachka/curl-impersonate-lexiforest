@@ -28,7 +28,7 @@ RUN apt-get install -y xz-utils
 RUN apt-get install -y g++ golang-go unzip
 
 # Download and compile libbrotli
-ARG BROTLI_VERSION=1.0.9
+ARG BROTLI_VERSION=1.1.0
 RUN curl -L https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz -o brotli-${BROTLI_VERSION}.tar.gz && \
     tar xf brotli-${BROTLI_VERSION}.tar.gz
 RUN cd brotli-${BROTLI_VERSION} && \
@@ -61,8 +61,8 @@ RUN mkdir boringssl/build/lib && \
     ln -s ../ssl/libssl.a boringssl/build/lib/libssl.a && \
     cp -R boringssl/include boringssl/build
 
-ARG NGHTTP2_VERSION=nghttp2-1.56.0
-ARG NGHTTP2_URL=https://github.com/nghttp2/nghttp2/releases/download/v1.56.0/nghttp2-1.56.0.tar.bz2
+ARG NGHTTP2_VERSION=nghttp2-1.61.0
+ARG NGHTTP2_URL=https://github.com/nghttp2/nghttp2/releases/download/v1.61.0/nghttp2-1.61.0.tar.bz2
 
 # Download nghttp2 for HTTP/2.0 support.
 RUN curl -o ${NGHTTP2_VERSION}.tar.bz2 -L ${NGHTTP2_URL}
@@ -74,7 +74,7 @@ RUN cd ${NGHTTP2_VERSION} && \
     make && make install
 
 # Download curl.
-ARG CURL_VERSION=curl-8.5.0
+ARG CURL_VERSION=curl-8.7.1
 RUN curl -o ${CURL_VERSION}.tar.xz https://curl.se/download/${CURL_VERSION}.tar.xz
 RUN tar xf ${CURL_VERSION}.tar.xz
 
