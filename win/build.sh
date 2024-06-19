@@ -53,11 +53,11 @@ cd curl
 patchfile=../../chrome/patches/curl-impersonate.patch
 patch -p1 < $patchfile
 
-# sed -i 's/-shared/-s -static -shared/g' lib/Makefile.mk
-# sed -i 's/-static/-s -static/g' src/Makefile.mk
-#
-# sed -i 's/-DUSE_NGHTTP2/-DUSE_NGHTTP2 -DNGHTTP2_STATICLIB/g' lib/Makefile.mk
-# sed -i 's/-DUSE_NGHTTP2/-DUSE_NGHTTP2 -DNGHTTP2_STATICLIB/g' src/Makefile.mk
+sed -i 's/-shared/-s -static -shared/g' lib/Makefile.mk
+sed -i 's/-static/-s -static/g' src/Makefile.mk
+
+sed -i 's/-DUSE_NGHTTP2/-DUSE_NGHTTP2 -DNGHTTP2_STATICLIB/g' lib/Makefile.mk
+sed -i 's/-DUSE_NGHTTP2/-DUSE_NGHTTP2 -DNGHTTP2_STATICLIB/g' src/Makefile.mk
 
 sed -i 's/-lidn2/-lidn2 -lunistring -liconv/g' lib/Makefile.mk
 sed -i 's/-lidn2/-lidn2 -lunistring -liconv/g' src/Makefile.mk
