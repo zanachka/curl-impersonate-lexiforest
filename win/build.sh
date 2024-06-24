@@ -26,18 +26,9 @@ mv lib/ssl/libssl.a lib/libssl.a
 
 cd ..
 
-export ZLIB_PATH=zlib_stub
-export ZSTD_PATH=zstd_stub
-export BROTLI_PATH=brotli_stub
 export BROTLI_LIBS='-lbrotlidec -lbrotlicommon'
-export NGHTTP2_PATH=nghttp2_stub
-export LIBIDN2_PATH=idn2_stub
-export SSL=1
-export SSL_PATH=$PWD/boringssl
 export OPENSSL_PATH=$PWD/boringssl
 export OPENSSL_LIBPATH=$PWD/boringssl/lib
-export OPENSSL_LIBS='-lssl -lcrypto'
-
 
 CURL_VERSION=curl-8_7_1
 
@@ -53,24 +44,13 @@ cd curl
 patchfile=../../chrome/patches/curl-impersonate.patch
 patch -p1 < $patchfile
 
-sed -i 's/-shared/-s -static -shared/g' lib/Makefile.mk
-sed -i 's/-static/-s -static/g' src/Makefile.mk
-
-sed -i 's/-DUSE_NGHTTP2/-DUSE_NGHTTP2 -DNGHTTP2_STATICLIB/g' lib/Makefile.mk
-sed -i 's/-DUSE_NGHTTP2/-DUSE_NGHTTP2 -DNGHTTP2_STATICLIB/g' src/Makefile.mk
-
-sed -i 's/-lidn2/-lidn2 -lunistring -liconv/g' lib/Makefile.mk
-sed -i 's/-lidn2/-lidn2 -lunistring -liconv/g' src/Makefile.mk
-
-# print all options
-cmake -LAH
+export CMAKE_PREFIX_PATH=../boringssl
 
 cmake -B build -G "MinGW Makefiles" \
-    -DSSL_PATH=$PWD/boringssl \
-    -DOPENSSL_LIBS='-lssl -lcrypto' \
     -DENABLE_IPV6=ON \
     -DENABLE_UNICODE=ON \
     -DUSE_NGHTTP2=ON \
+    -DUSE_LIBIDN2=ON \
     -DENABLE_WEBSOCKETS=ON \
     -DCURL_BROTLI=ON \
     -DCURL_ZLIB=ON \
@@ -78,18 +58,17 @@ cmake -B build -G "MinGW Makefiles" \
     -DENABLE_IPV6=ON \
     -DCURL_ENABLE_SSL=ON \
     -DCURL_USE_OPENSSL=ON \
-    -DHAVE_BORINGSSL=1 \
     -DUSE_ECH=ON \
-    -DHAVE_ECH=ON \
-    -DBUILD_STATIC_CURL=ON \
-    -DBUILD_STATIC_LIBS=ON \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_FLAGS=-Wno-unused-variable \
+    -DBUILD_STATIC_LIBS=ON \
+    -DBUILD_STATIC_CURL=ON \
+
 
 cd build
 
 mingw32-make clean
-mingw32-make -j CFLAGS="-Wno-unused-variable" CFG=-ssl-zlib-nghttp2-idn2-brotli-zstd-ipv6
+mingw32-make -j CFG=-ssl-zlib-nghttp2-idn2-brotli-zstd-ipv6
 
 cd ..
 
