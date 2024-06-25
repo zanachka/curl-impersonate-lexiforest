@@ -65,7 +65,7 @@ jobs:
 
       - name: Copy and patch
         shell: msys2 {0}
-        run: ./win/build.sh
+        run: ./win/build.sh ${{ matrix.sys }}
 
       # - name: Setup tmate session for debugging
       #   uses: mxschmitt/action-tmate@v3

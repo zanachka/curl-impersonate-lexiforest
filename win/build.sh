@@ -72,20 +72,22 @@ mingw32-make -j CFG=-ssl-zlib-nghttp2-idn2-brotli-zstd-ipv6
 
 cd ..
 
+SYS=$1
+
 mkdir -p ../dist
 ls build
 mv build/lib/libcurl* ../dist/
-cp /mingw64/bin/libidn2-0.dll ../dist/
-cp /mingw64/bin/libnghttp2-14.dll ../dist/
-cp /mingw64/bin/libbrotlidec.dll ../dist/
-cp /mingw64/bin/libbrotlicommon.dll ../dist/
-cp /mingw64/bin/libpsl-5.dll ../dist/
-cp /mingw64/bin/libssh2-1.dll ../dist/
-cp /mingw64/bin/libzstd.dll ../dist/
-cp /mingw64/bin/zlib1.dll ../dist/
-cp /mingw64/bin/libiconv-2.dll ../dist/
-cp /mingw64/bin/libintl-8.dll ../dist/
-cp /mingw64/bin/libunistring-5.dll ../dist
+cp /$SYS/bin/libidn2-0.dll ../dist/
+cp /$SYS/bin/libnghttp2-14.dll ../dist/
+cp /$SYS/bin/libbrotlidec.dll ../dist/
+cp /$SYS/bin/libbrotlicommon.dll ../dist/
+cp /$SYS/bin/libpsl-5.dll ../dist/
+cp /$SYS/bin/libssh2-1.dll ../dist/
+cp /$SYS/bin/libzstd.dll ../dist/
+cp /$SYS/bin/zlib1.dll ../dist/
+cp /$SYS/bin/libiconv-2.dll ../dist/
+cp /$SYS/bin/libintl-8.dll ../dist/
+cp /$SYS/bin/libunistring-5.dll ../dist
 mv build/src/*.exe ../dist/
 
 cd ..
