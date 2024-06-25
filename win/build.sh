@@ -75,6 +75,17 @@ cd ..
 mkdir -p ../dist
 ls build
 mv build/lib/libcurl* ../dist/
+cp /mingw64/bin/libidn2-0.dll ../dist/
+cp /mingw64/bin/libnghttp2-14.dll ../dist/
+cp /mingw64/bin/libbrotlidec.dll ../dist/
+cp /mingw64/bin/libbrotlicommon.dll ../dist/
+cp /mingw64/bin/libpsl-5.dll ../dist/
+cp /mingw64/bin/libssh2-1.dll ../dist/
+cp /mingw64/bin/libzstd.dll ../dist/
+cp /mingw64/bin/zlib1.dll ../dist/
+cp /mingw64/bin/libiconv-2.dll ../dist/
+cp /mingw64/bin/libintl-8.dll ../dist/
+cp /mingw64/bin/libunistring-5.dll ../dist
 mv build/src/*.exe ../dist/
 
 cd ..
