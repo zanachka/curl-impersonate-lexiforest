@@ -63,7 +63,6 @@ cmake -B build -G "MinGW Makefiles" \
     -DCURL_USE_OPENSSL=ON \
     -DUSE_ECH=ON \
     -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_STATIC_LIBS=ON \
     -DBUILD_STATIC_CURL=ON \
 
