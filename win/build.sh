@@ -90,6 +90,10 @@ cp /$SYS/bin/zlib1.dll ../dist/
 cp /$SYS/bin/libiconv-2.dll ../dist/
 cp /$SYS/bin/libintl-8.dll ../dist/
 cp /$SYS/bin/libunistring-5.dll ../dist
+cp /$SYS/bin/libgcc_s_dw2-1.dll ../dist | true  # 32bit
+cp /$SYS/bin/libgcc_s_seh-1.dll ../dist | true  # 64bit
+cp /$SYS/bin/libwinpthread-1.dll ../dist
+cp /$SYS/bin//libstdc++-6.dll ../dist
 mv build/src/*.exe ../dist/
 
 cd ..
