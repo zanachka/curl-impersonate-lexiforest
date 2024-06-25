@@ -45,6 +45,9 @@ patchfile=../../chrome/patches/curl-impersonate.patch
 patch -p1 < $patchfile
 
 export CMAKE_PREFIX_PATH=../boringssl
+export CFLAGS='-Wno-unused-variable -static -static-libgcc -static-libstdc++'
+export CXXFLAGS='-static -static-libgcc -static-libstdc++'
+export LDFLAGS='-static -static-libgcc -static-libstdc++ -lz -lidn2 -lnghttp2 -lbrotlidec -lpsl'
 
 cmake -B build -G "MinGW Makefiles" \
     -DENABLE_IPV6=ON \
@@ -60,7 +63,7 @@ cmake -B build -G "MinGW Makefiles" \
     -DCURL_USE_OPENSSL=ON \
     -DUSE_ECH=ON \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_FLAGS=-Wno-unused-variable \
+    -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_STATIC_LIBS=ON \
     -DBUILD_STATIC_CURL=ON \
 
