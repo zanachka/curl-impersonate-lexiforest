@@ -63,6 +63,8 @@ The following browsers can be impersonated.
 | ![Safari](https://github.com/alrra/browser-logos/blob/main/src/safari/safari_24x24.png "Safari") | 15.5 | 17613.2.7.1.8 | MacOS Monterey | `safari15_5` | [curl_safari15_5](chrome/curl_safari15_5) |
 | ![Safari](https://github.com/alrra/browser-logos/blob/main/src/safari/safari_24x24.png "Safari") | 17.0 | unclear | MacOS Sonoma | `safari17_0` | [curl_safari17_0](chrome/curl_safari17_0) |
 | ![Safari](https://github.com/alrra/browser-logos/blob/main/src/safari/safari_24x24.png "Safari") | 17.2 | unclear | iOS 17.2 | `safari17_2_ios` | [curl_safari17_2_ios](chrome/curl_safari17_2_ios) |
+| ![Safari](https://github.com/alrra/browser-logos/blob/main/src/safari/safari_24x24.png "Safari") | 18.0 | unclear | MacOS Sequoia | `safari18_0` | [curl_safari18_0](chrome/curl_safari18_0) |
+| ![Safari](https://github.com/alrra/browser-logos/blob/main/src/safari/safari_24x24.png "Safari") | 18.0 | unclear | iOS 18.0 | `safari18_0_ios` | [curl_safari18_0_ios](chrome/curl_safari18_0_ios) |
 
 <small>
 Notes:
@@ -71,7 +73,7 @@ Notes:
 2. The original Safari fingerprints in the upstream fork are [not correct](https://github.com/lwthiker/curl-impersonate/issues/215).
 </small>
 
-~~This list is also available in the [browsers.json](browsers.json) file.()~~Needs to be updated.
+~~This list is also available in the [browsers.json](browsers.json) file.()~~ Needs to be updated.
 
 ## Basic usage
 
