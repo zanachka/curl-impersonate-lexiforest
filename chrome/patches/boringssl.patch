@@ -150,7 +150,7 @@ index 81f2b4baa..d6d5a23d5 100644
  }
  
 diff --git a/export.sh b/export.sh
-new file mode 100644
+new file mode 100755
 index 000000000..7518747ad
 --- /dev/null
 +++ b/export.sh
@@ -297,7 +297,7 @@ index 99d48c526..5134708f2 100644
  #define TLSEXT_MAXLEN_host_name 255
  
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
-index df914c806..5652c5efc 100644
+index df914c806..5bc27c2d4 100644
 --- a/ssl/extensions.cc
 +++ b/ssl/extensions.cc
 @@ -2114,7 +2114,15 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
@@ -361,13 +361,18 @@ index df914c806..5652c5efc 100644
    return CBBFinishArray(cbb.get(), &hs->key_share_bytes);
  }
  
-@@ -2215,11 +2235,16 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
+@@ -2213,13 +2233,21 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
+   }
+ 
    SSLKeyShare *key_share = hs->key_shares[0].get();
++  // group_id is the server chosen group_id, and if key_share[0] is not chosen
    if (key_share->GroupID() != group_id) {
++    // the server also did not choose the second one
      if (!hs->key_shares[1] || hs->key_shares[1]->GroupID() != group_id) {
 -      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
 -      OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_CURVE);
 -      return false;
++      // the server also did not choose the third one, we are out of options
 +      if (!hs->key_shares[2] || hs->key_shares[2]->GroupID() != group_id) {
 +        *out_alert = SSL_AD_ILLEGAL_PARAMETER;
 +        OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_CURVE);
@@ -382,7 +387,11 @@ index df914c806..5652c5efc 100644
    }
  
    if (!key_share->Decap(out_secret, out_alert, ciphertext)) {
-@@ -2230,6 +2255,7 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
+@@ -2227,9 +2255,11 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
+     return false;
+   }
+ 
++  // choose the first one
    hs->new_session->group_id = group_id;
    hs->key_shares[0].reset();
    hs->key_shares[1].reset();
@@ -390,7 +399,7 @@ index df914c806..5652c5efc 100644
    return true;
  }
  
-@@ -2686,6 +2712,27 @@ static bool ext_quic_transport_params_add_serverhello_legacy(SSL_HANDSHAKE *hs,
+@@ -2686,6 +2716,27 @@ static bool ext_quic_transport_params_add_serverhello_legacy(SSL_HANDSHAKE *hs,
  static bool ext_delegated_credential_add_clienthello(
      const SSL_HANDSHAKE *hs, CBB *out, CBB *out_compressible,
      ssl_client_hello_type_t type) {
@@ -418,7 +427,7 @@ index df914c806..5652c5efc 100644
    return true;
  }
  
-@@ -3033,6 +3080,40 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
+@@ -3033,6 +3084,40 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
    return true;
  }
  
@@ -459,7 +468,7 @@ index df914c806..5652c5efc 100644
  // kExtensions contains all the supported extensions.
  static const struct tls_extension kExtensions[] = {
      {
-@@ -3206,6 +3287,13 @@ static const struct tls_extension kExtensions[] = {
+@@ -3206,6 +3291,13 @@ static const struct tls_extension kExtensions[] = {
          ignore_parse_clienthello,
          ext_alps_add_serverhello,
      },
@@ -473,7 +482,15 @@ index df914c806..5652c5efc 100644
      {
          TLSEXT_TYPE_application_settings_old,
          ext_alps_add_clienthello_old,
-@@ -3269,6 +3357,43 @@ static const struct tls_extension *tls_extension_find(uint32_t *out_index,
+@@ -3245,6 +3337,7 @@ bool ssl_setup_extension_permutation(SSL_HANDSHAKE *hs) {
+       !permutation.InitForOverwrite(kNumExtensions)) {
+     return false;
+   }
++  // By default, nothing is permuted.
+   for (size_t i = 0; i < kNumExtensions; i++) {
+     permutation[i] = i;
+   }
+@@ -3269,6 +3362,43 @@ static const struct tls_extension *tls_extension_find(uint32_t *out_index,
    return NULL;
  }
  
@@ -502,7 +519,7 @@ index df914c806..5652c5efc 100644
 +  char *ext = strtok(tmp, delimiter);
 +  size_t idx = 0;
 +  while (ext != nullptr) {
-+    unsigned ext_index;
++    unsigned ext_index = 0;
 +    tls_extension_find(&ext_index, atoi(ext));
 +    order[idx] = ext_index;
 +    ext = strtok(NULL, delimiter);
@@ -517,7 +534,7 @@ index df914c806..5652c5efc 100644
  static bool add_padding_extension(CBB *cbb, uint16_t ext, size_t len) {
    CBB child;
    if (!CBB_add_u16(cbb, ext) ||  //
-@@ -3315,6 +3440,7 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
+@@ -3315,6 +3445,7 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
      size_t i = hs->extension_permutation.empty()
                     ? unpermuted
                     : hs->extension_permutation[unpermuted];
@@ -525,7 +542,7 @@ index df914c806..5652c5efc 100644
      const size_t len_before = CBB_len(&extensions);
      const size_t len_compressed_before = CBB_len(compressed.get());
      if (!kExtensions[i].add_clienthello(hs, &extensions, compressed.get(),
-@@ -3424,6 +3550,7 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
+@@ -3424,6 +3555,7 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
      size_t i = hs->extension_permutation.empty()
                     ? unpermuted
                     : hs->extension_permutation[unpermuted];
