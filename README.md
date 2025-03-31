@@ -161,17 +161,6 @@ You may also need the [forked and patched](https://github.com/lexiforest/borings
 
 ## Sponsors
 
-<a href="https://nubela.co/proxycurl/?utm_campaign=influencer_marketing&utm_source=github&utm_medium=social&utm_term=-&utm_content=lexiforest-curl_cffi" target="_blank"><img src="https://raw.githubusercontent.com/lexiforest/curl_cffi/main/assets/proxycurl.png" alt="ProxyCurl" height="63" width="120"></a>
-
-Scrape public LinkedIn profile data at scale with [Proxycurl APIs](https://nubela.co/proxycurl/?utm_campaign=influencer_marketing&utm_source=github&utm_medium=social&utm_term=-&utm_content=lexiforest-curl_cffi). Built for developers, by developers.
-
-- GDPR, CCPA, SOC2 compliant
-- High rate limit (300 requests/min), Fast (APIs respond in ~2s), High accuracy
-- Fresh data - 88% of data is scraped real-time, other 12% is <29 days
-- Tons of data points returned per profile
-
-------
-
 ### Bypass Cloudflare with API
 
 <a href="https://yescaptcha.com/i/stfnIO" target="_blank"><img src="https://raw.githubusercontent.com/lexiforest/curl_cffi/main/assets/yescaptcha.png" alt="Yes Captcha!" height="47" width="149"></a>
@@ -182,12 +171,13 @@ to register: https://yescaptcha.com/i/stfnIO
 
 ------
 
-<a href="https://scrapeninja.net?utm_source=github&utm_medium=banner&utm_campaign=cffi" target="_blank"><img src="https://scrapeninja.net/img/logo_with_text_new5.svg" alt="Scrape Ninja" width="149"></a>
+### Easy Captcha Bypass for Scraping
 
-[ScrapeNinja](https://scrapeninja.net?utm_source=github&utm_medium=banner&utm_campaign=cffi) is a web scraping API with two engines: fast, with high performance and TLS
-fingerprint; and slower with a real browser under the hood.
+<a href="https://www.capsolver.com/?utm_source=github&utm_medium=banner_repo&utm_campaign=scraping&utm_term=curl_cffi" target="_blank"><img src="https://raw.githubusercontent.com/lexiforest/curl_cffi/main/assets/capsolver.jpg" alt="CapSolver" height="50" width="178"></a>
 
-ScrapeNinja handles headless browsers, proxies, timeouts, retries, and helps with data
-extraction, so you can just get the data in JSON. Rotating proxies are available out of
-the box on all subscription plans.
+[CapSolver](https://www.capsolver.com/?utm_source=github&utm_medium=banner_repo&utm_campaign=scraping&utm_term=curl_cffi)
+is an AI-powered tool that easily bypasses Captchas, allowing uninterrupted access to
+public data. It supports a variety of Captchas and works seamlessly with `curl_cffi`,
+Puppeteer, Playwright, and more. Fast, reliable, and cost-effective. Plus, `curl_cffi`
+users can use the code **"CURL"** to get an extra 6% balance! and register [here](https://dashboard.capsolver.com/passport/?utm_source=github&utm_medium=banner_repo&utm_campaign=scraping&utm_term=curl_cffi).
 
