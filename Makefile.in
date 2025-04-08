@@ -108,9 +108,6 @@ clean:
 	rm -Rf boringssl-$(BORING_SSL_COMMIT).zip boringssl-$(BORING_SSL_COMMIT)
 	rm -Rf $(NGHTTP2_VERSION).tar.bz2 $(NGHTTP2_VERSION)
 	rm -Rf $(CURL_VERSION).tar.gz $(CURL_VERSION)
-	## Clean build artifacts of the Chrome version. Use after re-running './configure'
-	cd $(CURL_VERSION)
-	rm -f .chrome
 .PHONY: clean
 
 
