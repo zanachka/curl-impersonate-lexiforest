@@ -77,7 +77,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install build-essential pkg-config cmake ninja-build curl autoconf automake libtool
           sudo apt-get install gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-riscv64-linux-gnu
-          # Chrome version dependencies
           sudo apt-get install golang-go
           # Needed to compile 'minicurl'
           sudo apt-get install libcurl4-openssl-dev
@@ -132,7 +131,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: boringssl/build
-          key: ${{ runner.os }}-${{ matrix.host }}-boring-build-${{ env.BORING_SSL_COMMIT }}-${{ hashFiles('chrome/patches/boringssl*.patch') }}
+          key: ${{ runner.os }}-${{ matrix.host }}-boring-build-${{ env.BORING_SSL_COMMIT }}-${{ hashFiles('patches/boringssl.patch') }}
 
       # Trick the Makefile into skipping the BoringSSL build step
       # if it was found in the cache. See Makefile.in
@@ -181,6 +180,8 @@ jobs:
           cp ${{ runner.temp }}/zlib/lib/lib*.a ${{ runner.temp }}/install/lib
           cp ${{ runner.temp }}/zstd/lib/lib*.a ${{ runner.temp }}/install/lib
           cp nghttp2*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
+          cp nghttp3*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
+          cp ngtcp2*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           cp brotli*/out/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           cp boringssl*/lib/lib*.a ${{ runner.temp }}/install/lib
 
