@@ -856,7 +856,7 @@ index be617b5d2..cecda8de7 100644
  }
  #endif
 diff --git a/lib/http.c b/lib/http.c
-index 03d1959e2..c984d68b4 100644
+index 03d1959e2..e51b385f4 100644
 --- a/lib/http.c
 +++ b/lib/http.c
 @@ -86,6 +86,7 @@
@@ -1043,7 +1043,7 @@ index 03d1959e2..c984d68b4 100644
    { STRCONST("Host") },
    { STRCONST("Upgrade") },
    { STRCONST("Connection") },
-@@ -4467,6 +4586,33 @@ static bool h2_non_field(const char *name, size_t namelen)
+@@ -4467,6 +4586,29 @@ static bool h2_non_field(const char *name, size_t namelen)
    return FALSE;
  }
  
@@ -1057,10 +1057,6 @@ index 03d1959e2..c984d68b4 100644
 +static CURLcode h2_check_pseudo_header_order(const char *order)
 +{
 +  if(strlen(order) != 4)
-+    return CURLE_BAD_FUNCTION_ARGUMENT;
-+
-+  // :method should always be first
-+  if(order[0] != 'm')
 +    return CURLE_BAD_FUNCTION_ARGUMENT;
 +
 +  // All pseudo-headers must be present
@@ -1077,7 +1073,7 @@ index 03d1959e2..c984d68b4 100644
  CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
                               struct httpreq *req, struct Curl_easy *data)
  {
-@@ -4475,6 +4621,10 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
+@@ -4475,6 +4617,10 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
    size_t i;
    CURLcode result;
  
@@ -1088,7 +1084,7 @@ index 03d1959e2..c984d68b4 100644
    DEBUGASSERT(req);
    DEBUGASSERT(h2_headers);
  
-@@ -4505,25 +4655,56 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
+@@ -4505,25 +4651,56 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
  
    Curl_dynhds_reset(h2_headers);
    Curl_dynhds_set_opts(h2_headers, DYNHDS_OPT_LOWERCASE);
@@ -1514,10 +1510,10 @@ index 93cc2d44f..52e80ce9c 100644
   * Store nghttp2 version info in this buffer.
 diff --git a/lib/impersonate.c b/lib/impersonate.c
 new file mode 100644
-index 000000000..f4454d060
+index 000000000..d05dcbf19
 --- /dev/null
 +++ b/lib/impersonate.c
-@@ -0,0 +1,1502 @@
+@@ -0,0 +1,1501 @@
 +#include "curl_setup.h"
 +
 +#include <curl/curl.h>
@@ -2383,7 +2379,6 @@ index 000000000..f4454d060
 +    .tls_grease = true
 +  },
 +  {
-+    .target = "firefox133",
 +    .target = "firefox133",
 +    .httpversion = CURL_HTTP_VERSION_2_0,
 +    .ssl_version = CURL_SSLVERSION_TLSv1_2 | CURL_SSLVERSION_MAX_DEFAULT,
