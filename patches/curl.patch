@@ -408,7 +408,7 @@ index fb162a30d..f1429fe2f 100644
  bool Curl_dynhds_contains(struct dynhds *dynhds,
                            const char *name, size_t namelen);
 diff --git a/lib/easy.c b/lib/easy.c
-index aa1bedec3..7557f3720 100644
+index aa1bedec3..e88e8a3d0 100644
 --- a/lib/easy.c
 +++ b/lib/easy.c
 @@ -75,6 +75,8 @@
@@ -420,7 +420,7 @@ index aa1bedec3..7557f3720 100644
  
  #include "easy_lock.h"
  
-@@ -344,6 +346,277 @@ CURLsslset curl_global_sslset(curl_sslbackend id, const char *name,
+@@ -344,6 +346,281 @@ CURLsslset curl_global_sslset(curl_sslbackend id, const char *name,
    return rc;
  }
  
@@ -609,10 +609,14 @@ index aa1bedec3..7557f3720 100644
 +
 +  if(opts->http2_stream_weight) {
 +    ret = curl_easy_setopt(data, CURLOPT_STREAM_WEIGHT, opts->http2_stream_weight);
++    if(ret)
++      return ret;
 +  }
 +
 +  if(opts->http2_stream_exclusive) {
 +    ret = curl_easy_setopt(data, CURLOPT_STREAM_EXCLUSIVE, opts->http2_stream_exclusive);
++    if(ret)
++      return ret;
 +  }
 +
 +  return CURLE_OK;
@@ -698,7 +702,7 @@ index aa1bedec3..7557f3720 100644
  /*
   * curl_easy_init() is the external interface to alloc, setup and init an
   * easy handle that is returned. If anything goes wrong, NULL is returned.
-@@ -352,6 +625,8 @@ CURL *curl_easy_init(void)
+@@ -352,6 +629,8 @@ CURL *curl_easy_init(void)
  {
    CURLcode result;
    struct Curl_easy *data;
@@ -707,7 +711,7 @@ index aa1bedec3..7557f3720 100644
  
    /* Make sure we inited the global SSL stuff */
    global_init_lock();
-@@ -374,6 +649,29 @@ CURL *curl_easy_init(void)
+@@ -374,6 +653,29 @@ CURL *curl_easy_init(void)
      return NULL;
    }
  
@@ -737,7 +741,7 @@ index aa1bedec3..7557f3720 100644
    return data;
  }
  
-@@ -1010,6 +1308,13 @@ CURL *curl_easy_duphandle(CURL *d)
+@@ -1010,6 +1312,13 @@ CURL *curl_easy_duphandle(CURL *d)
      outcurl->state.referer_alloc = TRUE;
    }
  
@@ -751,7 +755,7 @@ index aa1bedec3..7557f3720 100644
    /* Reinitialize an SSL engine for the new handle
     * note: the engine name has already been copied by dupset */
    if(outcurl->set.str[STRING_SSL_ENGINE]) {
-@@ -1096,6 +1401,9 @@ fail:
+@@ -1096,6 +1405,9 @@ fail:
   */
  void curl_easy_reset(CURL *d)
  {
@@ -761,7 +765,7 @@ index aa1bedec3..7557f3720 100644
    struct Curl_easy *data = d;
    Curl_req_hard_reset(&data->req, data);
  
-@@ -1121,6 +1429,23 @@ void curl_easy_reset(CURL *d)
+@@ -1121,6 +1433,23 @@ void curl_easy_reset(CURL *d)
  #if !defined(CURL_DISABLE_HTTP) && !defined(CURL_DISABLE_DIGEST_AUTH)
    Curl_http_auth_cleanup_digest(data);
  #endif
@@ -3109,7 +3113,7 @@ index 09afe804c..4bdc3eede 100644
  
  #ifdef USE_WINSOCK
 diff --git a/lib/setopt.c b/lib/setopt.c
-index 48332295e..6ba357100 100644
+index 48332295e..88171030e 100644
 --- a/lib/setopt.c
 +++ b/lib/setopt.c
 @@ -51,6 +51,7 @@
@@ -3120,18 +3124,18 @@ index 48332295e..6ba357100 100644
  #include "strdup.h"
  #include "escape.h"
  
-@@ -620,6 +621,11 @@ static CURLcode setopt_long(struct Curl_easy *data, CURLoption option,
-     case CURL_HTTP_VERSION_3ONLY:
-       /* accepted */
-       break;
+@@ -629,6 +630,11 @@ static CURLcode setopt_long(struct Curl_easy *data, CURLoption option,
+     }
+     data->set.httpwant = (unsigned char)arg;
+     break;
++#ifdef USE_HTTP2
++  case CURLOPT_STREAM_EXCLUSIVE:
++    data->set.priority.exclusive = (int)arg;
++    break;
 +#endif
-+#if defined(USE_HTTP2) || defined(USE_HTTP3)
-+    case CURLOPT_STREAM_EXCLUSIVE:
-+      data->set.priority.exclusive = (int)arg;
-+      break;
- #endif
-     default:
-       /* not accepted */
+ 
+   case CURLOPT_EXPECT_100_TIMEOUT_MS:
+     /*
 @@ -1314,6 +1320,35 @@ static CURLcode setopt_long(struct Curl_easy *data, CURLoption option,
    case CURLOPT_SSL_ENABLE_ALPN:
      data->set.ssl_enable_alpn = enabled;
