@@ -25,7 +25,7 @@ signature:
       window_size_increment: 15663105
     - frame_type: HEADERS
       headers:
-      - 'sec-ch-ua: "Chromium";v="133", "Google Chrome";v="133", "Not.A/Brand";v="99"'
+      - 'sec-ch-ua: "Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"'
       - 'sec-ch-ua-mobile: ?0'
       - 'sec-ch-ua-platform: "macOS"'
       - 'upgrade-insecure-requests: 1'
