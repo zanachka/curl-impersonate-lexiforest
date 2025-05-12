@@ -193,6 +193,7 @@ $(boringssl_static_libs): boringssl-$(BORING_SSL_COMMIT).zip boringssl-$(BORING_
 	# In addition, guard these options with -Wno-unknown-warning-option to
 	# prevent clang from failing on them.
 	@cmake@ -DCMAKE_BUILD_TYPE=Release \
+			-DBUILD_TESTING=OFF \
 			-DCMAKE_POSITION_INDEPENDENT_CODE=on \
 			-DCMAKE_C_FLAGS="$(CFLAGS) -Wno-unknown-warning-option -Wno-stringop-overflow -Wno-array-bounds -Wno-macro-redefined" \
 			-DCMAKE_CXX_FLAGS="$(CXX_FLAGS) -Wno-macro-redefined" \
