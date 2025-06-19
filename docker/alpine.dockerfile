@@ -39,7 +39,7 @@ RUN ./configure --prefix=/build/install \
 FROM alpine:3.21
 
 RUN apk update && \
-    apk add ca-certificates libc++ libc++abi \
+    apk add ca-certificates libc++ zstd \
     && rm -rf /var/cache/apk/*
 
 COPY --from=builder /build/install /usr/local
