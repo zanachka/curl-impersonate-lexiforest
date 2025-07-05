@@ -879,7 +879,7 @@ index 03d676df0..476216312 100644
  }
  #endif
 diff --git a/lib/http.c b/lib/http.c
-index 5942d313b..60ea7951b 100644
+index 5942d313b..595c0b809 100644
 --- a/lib/http.c
 +++ b/lib/http.c
 @@ -85,6 +85,7 @@
@@ -1045,7 +1045,15 @@ index 5942d313b..60ea7951b 100644
  static CURLcode http_useragent(struct Curl_easy *data)
  {
    /* The User-Agent string might have been allocated in url.c already, because
-@@ -2715,6 +2829,11 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
+@@ -2669,7 +2783,6 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
+   const char *httpstring;
+   struct dynbuf req;
+   char *altused = NULL;
+-  const char *p_accept;      /* Accept: string */
+   unsigned char httpversion;
+ 
+   /* Always consider the DO phase done after this function call, even if there
+@@ -2715,6 +2828,11 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
    if(result)
      goto fail;
  
@@ -1057,7 +1065,26 @@ index 5942d313b..60ea7951b 100644
    result = http_host(data, conn);
    if(result)
      goto fail;
-@@ -4509,6 +4628,29 @@ static bool http_TE_has_token(const char *fvalue, const char *token)
+@@ -2772,9 +2890,6 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
+   if(result)
+     goto fail;
+ 
+-  p_accept = Curl_checkheaders(data,
+-                               STRCONST("Accept")) ? NULL : "Accept: */*\r\n";
+-
+   result = http_range(data, httpreq);
+   if(result)
+     goto fail;
+@@ -2837,7 +2952,7 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
+                     *data->set.str[STRING_USERAGENT] &&
+                     data->state.aptr.uagent) ?
+                    data->state.aptr.uagent : "",
+-                   p_accept ? p_accept : "",
++                   "", // Accept
+                    data->state.aptr.te ? data->state.aptr.te : "",
+                    (data->set.str[STRING_ENCODING] &&
+                     *data->set.str[STRING_ENCODING] &&
+@@ -4509,6 +4624,29 @@ static bool http_TE_has_token(const char *fvalue, const char *token)
    return FALSE;
  }
  
@@ -1087,7 +1114,7 @@ index 5942d313b..60ea7951b 100644
  CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
                               struct httpreq *req, struct Curl_easy *data)
  {
-@@ -4517,6 +4659,10 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
+@@ -4517,6 +4655,10 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
    size_t i;
    CURLcode result;
  
@@ -1098,7 +1125,7 @@ index 5942d313b..60ea7951b 100644
    DEBUGASSERT(req);
    DEBUGASSERT(h2_headers);
  
-@@ -4547,20 +4693,42 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
+@@ -4547,20 +4689,42 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
  
    Curl_dynhds_reset(h2_headers);
    Curl_dynhds_set_opts(h2_headers, DYNHDS_OPT_LOWERCASE);
@@ -1153,7 +1180,7 @@ index 5942d313b..60ea7951b 100644
    for(i = 0; !result && i < Curl_dynhds_count(&req->headers); ++i) {
      e = Curl_dynhds_getn(&req->headers, i);
      /* "TE" is special in that it is only permissible when it
-@@ -4573,6 +4741,8 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
+@@ -4573,6 +4737,8 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
      else if(h2_permissible_field(e)) {
        result = Curl_dynhds_add(h2_headers, e->name, e->namelen,
                                 e->value, e->valuelen);
