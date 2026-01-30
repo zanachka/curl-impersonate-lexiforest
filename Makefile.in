@@ -464,6 +464,7 @@ $(CURL_VERSION)/.chrome: $(chrome_libs)	$(CURL_VERSION).tar.gz $(CURL_VERSION)/.
 	  config_flags="$$config_flags --with-zlib=$(with_zlib)"; \
 	  config_flags="$$config_flags --with-zstd=$(with_zstd)"; \
 	  config_flags="$$config_flags --without-librtmp"; \
+	  config_flags="$$config_flags --disable-ldap --disable-ldaps"; \
 	  config_flags="$$config_flags --without-libpsl"; \
 	  config_flags="$$config_flags --enable-websockets"; \
 	  config_flags="$$config_flags --enable-ech"; \
