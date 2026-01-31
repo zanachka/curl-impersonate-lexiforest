@@ -82,13 +82,10 @@ libunistring_static_libs := $(libunistring_install_dir)/lib/libunistring.a
 libidn2_install_dir := $(abspath libidn2-$(LIBIDN2_VERSION)/installed)
 libidn2_static_libs := $(libidn2_install_dir)/lib/libidn2.a
 
-apple_host_os := $(filter darwin% ios% tvos% watchos%,$(host_os))
-
 # Dependencies needed to compile the Chrome version
-ifneq ($(apple_host_os),)
 chrome_libs := $(zlib_static_libs) $(zstd_static_libs) $(brotli_static_libs) $(boringssl_static_libs) $(nghttp2_static_libs) $(ngtcp2_static_libs) $(nghttp3_static_libs)
-else
-chrome_libs := $(zlib_static_libs) $(zstd_static_libs) $(brotli_static_libs) $(boringssl_static_libs) $(nghttp2_static_libs) $(ngtcp2_static_libs) $(nghttp3_static_libs) $(libidn2_static_libs)
+ifneq ($(filter linux%,$(host_os)),)
+chrome_libs += $(libidn2_static_libs)
 endif
 
 # Auto-generate Makefile help.
@@ -115,6 +112,7 @@ ifeq ($(host),$(build))
 	./src/curl-impersonate -V | grep -q BoringSSL
 	case "$(host_os)" in \
 	  darwin*|ios*|tvos*|watchos*) ./src/curl-impersonate -V | grep -q AppleIDN ;; \
+	  *android*) ;; \
 	  *) ./src/curl-impersonate -V | grep -q libidn2 ;; \
 	esac
 	$(info Build OK)
@@ -456,6 +454,9 @@ $(CURL_VERSION)/.chrome: $(chrome_libs)	$(CURL_VERSION).tar.gz $(CURL_VERSION)/.
 	    darwin*|ios*|tvos*|watchos*) \
 	      config_flags="$$config_flags --with-apple-idn --without-libidn2"; \
 	      ;; \
+	    *android*) \
+	      config_flags="$$config_flags --without-libidn2"; \
+	      ;; \
 	    *) \
 	      config_flags="$$config_flags --with-libidn2=$(libidn2_install_dir)"; \
 	      ;; \
@@ -485,6 +486,7 @@ $(CURL_VERSION)/.chrome: $(chrome_libs)	$(CURL_VERSION).tar.gz $(CURL_VERSION)/.
 	  fi; \
 	  case "$(host_os)" in \
 	    darwin*|ios*|tvos*|watchos*) add_libs="-pthread -lc++" ;; \
+	    *android*) add_libs="-pthread -lc++" ;; \
 	    *) add_libs="-pthread -lstdc++ -L$(libunistring_install_dir)/lib -lunistring" ;; \
 	  esac; \
 	}
@@ -495,6 +497,7 @@ $(CURL_VERSION)/.chrome: $(chrome_libs)	$(CURL_VERSION).tar.gz $(CURL_VERSION)/.
 		lib_path="$(nghttp2_install_dir)/lib:$(ngtcp2_install_dir)/lib:$(nghttp3_install_dir)/lib:$(zstd_install_dir)/lib:$(zlib_install_dir)/lib:$(brotli_install_dir)/lib"; \
 		case "$(host_os)" in \
 		  darwin*|ios*|tvos*|watchos*) ;; \
+		  *android*) ;; \
 		  *) lib_path="$$lib_path:$(libidn2_install_dir)/lib:$(libunistring_install_dir)/lib" ;; \
 		esac; \
 	}

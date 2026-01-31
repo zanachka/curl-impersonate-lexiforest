@@ -19,7 +19,7 @@ permissions:
 env:
   BORING_SSL_COMMIT: 673e61fc215b178a90c0e67858bbf162c8158993
   MACOSX_DEPLOYMENT_TARGET: 11.0
-  API: "30"  # Targeting android API version, Android 11
+  API: "21"  # Targeting an very old android API version
 
 jobs:
   build:
@@ -152,6 +152,8 @@ jobs:
           echo "LD=$TOOLCHAIN/bin/ld" >> $GITHUB_ENV
           echo "RANLIB=$TOOLCHAIN/bin/llvm-ranlib" >> $GITHUB_ENV
           echo "STRIP=$TOOLCHAIN/bin/llvm-strip" >> $GITHUB_ENV
+          echo "CFLAGS=-fPIC" >> $GITHUB_ENV
+          echo "CXXFLAGS=-fPIC" >> $GITHUB_ENV
 
       - name: Set iOS toolchain env
         if: matrix.platform == 'ios'
@@ -231,7 +233,7 @@ jobs:
           cp ngtcp2*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           cp brotli*/out/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           cp boringssl*/lib/lib*.a ${{ runner.temp }}/install/lib
-          if [[ "${{ matrix.platform }}" == "linux" || "${{ matrix.platform }}" == "android" ]]; then
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
             cp libidn2*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
             cp libunistring*/installed/lib/lib*.a ${{ runner.temp }}/install/lib
           fi
@@ -239,7 +241,7 @@ jobs:
           cd ${{ runner.temp }}/install/lib
           mv libcurl-impersonate.a libcurl-impersonate.orig.a
           lib_list="libcurl-impersonate.orig.a libz.a libzstd.a libbrotlidec.a libbrotlicommon.a libbrotlienc.a libnghttp2.a libnghttp3.a libngtcp2.a libngtcp2_crypto_boringssl.a libssl.a libcrypto.a"
-          if [[ "${{ matrix.platform }}" == "linux" || "${{ matrix.platform }}" == "android" ]]; then
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
             lib_list="$lib_list libidn2.a"
           fi
           if [[ "${{ runner.os }}" == "macOS" || "${{ matrix.platform }}" == "ios" ]]; then
@@ -250,7 +252,7 @@ jobs:
             rm -f libcurl-impersonate.full.o
           fi
           rm -f libz.a libzstd.a libbrotlidec.a libbrotlicommon.a libbrotlienc.a libnghttp2.a libnghttp3.a libngtcp2.a libngtcp2_crypto_boringssl.a libssl.a libcrypto.a
-          if [[ "${{ matrix.platform }}" == "linux" || "${{ matrix.platform }}" == "android" ]]; then
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
             rm -f libidn2.a libunistring.a
           fi
           rm -f libcurl-impersonate.orig.a
