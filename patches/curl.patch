@@ -1,3 +1,16 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c0cc0c57b8..2f3a350682 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2470,7 +2470,7 @@ if(NOT CURL_DISABLE_INSTALL)
+       COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/CMake/cmake_uninstall.cmake")
+   endif()
+ 
+-  install(FILES "${PROJECT_SOURCE_DIR}/scripts/wcurl"
++  install(FILES "${PROJECT_SOURCE_DIR}/scripts/wcurl-impersonate"
+     DESTINATION ${CMAKE_INSTALL_BINDIR}
+     PERMISSIONS
+       OWNER_READ OWNER_WRITE OWNER_EXECUTE
 diff --git a/Makefile.am b/Makefile.am
 index 08d59e807f..dbe5a0c893 100644
 --- a/Makefile.am
@@ -80,6 +93,353 @@ index 31ea30b24a..6534c11666 100644
      else
        echo 'curl was built with static libraries disabled' >&2
        exit 1
+diff --git a/docs/CMakeLists.txt b/docs/CMakeLists.txt
+index 5f342954cc..e63b7aa100 100644
+--- a/docs/CMakeLists.txt
++++ b/docs/CMakeLists.txt
+@@ -30,7 +30,7 @@ if(ENABLE_CURL_MANUAL AND BUILD_CURL_EXE)
+ endif()
+ 
+ if(BUILD_MISC_DOCS)
+-  foreach(_man_misc IN ITEMS "curl-config" "mk-ca-bundle" "wcurl" "runtests" "testcurl")
++  foreach(_man_misc IN ITEMS "curl-config" "mk-ca-bundle" "wcurl-impersonate" "runtests" "testcurl")
+     set(_man_target "${CMAKE_CURRENT_BINARY_DIR}/${_man_misc}.1")
+     add_custom_command(OUTPUT "${_man_target}"
+       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+diff --git a/docs/Makefile.am b/docs/Makefile.am
+index 554657e889..aaa5e84907 100644
+--- a/docs/Makefile.am
++++ b/docs/Makefile.am
+@@ -29,10 +29,10 @@ if BUILD_DOCS
+ MK_CA_DOCS = mk-ca-bundle.1
+ CURLCONF_DOCS = curl-config.1
+ TEST_DOCS = runtests.1 testcurl.1
+-man_MANS = curl-config.1 wcurl.1
++man_MANS = curl-config.1 wcurl-impersonate.1
+ endif
+ 
+-CURLPAGES = curl-config.md mk-ca-bundle.md wcurl.md runtests.md testcurl.md
++CURLPAGES = curl-config.md mk-ca-bundle.md wcurl-impersonate.md runtests.md testcurl.md
+ 
+ SUBDIRS = . cmdline-opts libcurl
+ DIST_SUBDIRS = $(SUBDIRS) examples
+@@ -144,7 +144,7 @@ curl-config.1: curl-config.md
+ 
+ mk-ca-bundle.1: mk-ca-bundle.md
+ 
+-wcurl.1: wcurl.md
++wcurl-impersonate.1: wcurl-impersonate.md
+ 
+ distclean:
+ 	rm -f $(CLEANFILES)
+diff --git a/docs/wcurl-impersonate.md b/docs/wcurl-impersonate.md
+new file mode 100644
+index 0000000000..3d5a9759b8
+--- /dev/null
++++ b/docs/wcurl-impersonate.md
+@@ -0,0 +1,151 @@
++---
++c: Copyright (C) Samuel Henrique <samueloph@debian.org>, Sergio Durigan Junior <sergiodj@debian.org> and many contributors, see the AUTHORS file.
++SPDX-License-Identifier: curl
++Title: wcurl-impersonate
++Section: 1
++Source: wcurl-impersonate
++See-also:
++  - curl (1)
++  - trurl (1)
++Added-in: n/a
++---
++
++# NAME
++
++**wcurl-impersonate** - a simple wrapper around curl-impersonate to easily
++download files.
++
++# SYNOPSIS
++
++**wcurl-impersonate \<URL\>...**
++
++**wcurl-impersonate [--curl-options \<CURL_OPTIONS\>]... [--dry-run] [--no-decode-filename] [-o|-O|--output \<PATH\>] [--] \<URL\>...**
++
++**wcurl-impersonate [--curl-options=\<CURL_OPTIONS\>]... [--dry-run] [--no-decode-filename] [--output=\<PATH\>] [--] \<URL\>...**
++
++**wcurl-impersonate -V|--version**
++
++**wcurl-impersonate -h|--help**
++
++# DESCRIPTION
++
++**wcurl-impersonate** is a simple curl wrapper which lets you use
++curl-impersonate to download files without having to remember any parameters.
++
++Simply call **wcurl-impersonate** with a list of URLs you want to download and
++**wcurl-impersonate** picks sane defaults.
++
++If you need anything more complex, you can provide any of curl-impersonate's
++supported
++parameters via the **--curl-options** option. Just beware that you likely
++should be using curl-impersonate directly if your use case is not covered.
++
++By default, **wcurl-impersonate** does:
++
++## * Percent-encode whitespaces in URLs;
++
++## * Download multiple URLs in parallel
++    if the installed curl-impersonate's version is \>= 7.66.0 (--parallel);
++
++## * Follow redirects;
++
++## * Automatically choose a filename as output;
++
++## * Avoid overwriting files
++     if the installed curl-impersonate's version is \>= 7.83.0 (--no-clobber);
++
++## * Perform retries;
++
++## * Set the downloaded file timestamp
++    to the value provided by the server, if available;
++
++## * Default to https
++    if the URL does not contain any scheme;
++
++## * Disable curl-impersonate's URL globbing parser
++    so {} and [] characters in URLs are not treated specially;
++
++## * Percent-decode the resulting filename;
++
++## * Use 'index.html' as the default filename
++    if there is none in the URL.
++
++# OPTIONS
++
++## --curl-options, --curl-options=\<CURL_OPTIONS\>...
++
++Specify extra options to be passed when invoking curl-impersonate. May be
++specified more than once.
++
++## -o, -O, --output, --output=\<PATH\>
++
++Use the provided output path instead of getting it from the URL. If multiple
++URLs are provided, resulting files share the same name with a number appended to
++the end (curl-impersonate \>= 7.83.0). If this option is provided multiple
++times, only the last value is considered.
++
++## --no-decode-filename
++
++Don't percent-decode the output filename, even if the percent-encoding in the
++URL was done by **wcurl-impersonate**, e.g.: The URL contained whitespaces.
++
++## --dry-run
++
++Do not actually execute curl-impersonate, just print what would be invoked.
++
++## -V, \--version
++
++Print version information.
++
++## -h, \--help
++
++Print help message.
++
++# CURL_OPTIONS
++
++Any option supported by curl-impersonate can be set here. This is not used by
++**wcurl-impersonate**; it is instead forwarded to the curl-impersonate
++invocation.
++
++# URL
++
++URL to be downloaded. Anything that is not a parameter is considered
++an URL. Whitespaces are percent-encoded and the URL is passed to
++curl-impersonate, which then performs the parsing. May be specified more than
++once.
++
++# EXAMPLES
++
++Download a single file:
++
++**wcurl-impersonate example.com/filename.txt**
++
++Download two files in parallel:
++
++**wcurl-impersonate example.com/filename1.txt example.com/filename2.txt**
++
++Download a file passing the **--progress-bar** and **--http2** flags to
++curl-impersonate:
++
++**wcurl-impersonate --curl-options="--progress-bar --http2" example.com/filename.txt**
++
++Resume from an interrupted download (if more options are used, this needs to
++be the last one in the list):
++
++**wcurl-impersonate --curl-options="--continue-at -" example.com/filename.txt**
++
++# AUTHORS
++
++    Samuel Henrique \<samueloph@debian.org\>
++    Sergio Durigan Junior \<sergiodj@debian.org\>
++    and many contributors, see the AUTHORS file.
++
++# REPORTING BUGS
++
++If you experience any problems with **wcurl-impersonate** that you do not
++experience with curl-impersonate, submit an issue on Github:
++https://github.com/curl/wcurl
++
++# COPYRIGHT
++
++**wcurl-impersonate** is licensed under the curl license
+diff --git a/docs/wcurl.md b/docs/wcurl.md
+deleted file mode 100644
+index 4111af5226..0000000000
+--- a/docs/wcurl.md
++++ /dev/null
+@@ -1,145 +0,0 @@
+----
+-c: Copyright (C) Samuel Henrique <samueloph@debian.org>, Sergio Durigan Junior <sergiodj@debian.org> and many contributors, see the AUTHORS file.
+-SPDX-License-Identifier: curl
+-Title: wcurl
+-Section: 1
+-Source: wcurl
+-See-also:
+-  - curl (1)
+-  - trurl (1)
+-Added-in: n/a
+----
+-
+-# NAME
+-
+-**wcurl** - a simple wrapper around curl to easily download files.
+-
+-# SYNOPSIS
+-
+-**wcurl \<URL\>...**
+-
+-**wcurl [--curl-options \<CURL_OPTIONS\>]... [--dry-run] [--no-decode-filename] [-o|-O|--output \<PATH\>] [--] \<URL\>...**
+-
+-**wcurl [--curl-options=\<CURL_OPTIONS\>]... [--dry-run] [--no-decode-filename] [--output=\<PATH\>] [--] \<URL\>...**
+-
+-**wcurl -V|--version**
+-
+-**wcurl -h|--help**
+-
+-# DESCRIPTION
+-
+-**wcurl** is a simple curl wrapper which lets you use curl to download files
+-without having to remember any parameters.
+-
+-Simply call **wcurl** with a list of URLs you want to download and **wcurl**
+-picks sane defaults.
+-
+-If you need anything more complex, you can provide any of curl's supported
+-parameters via the **--curl-options** option. Just beware that you likely
+-should be using curl directly if your use case is not covered.
+-
+-By default, **wcurl** does:
+-
+-## * Percent-encode whitespaces in URLs;
+-
+-## * Download multiple URLs in parallel
+-    if the installed curl's version is \>= 7.66.0 (--parallel);
+-
+-## * Follow redirects;
+-
+-## * Automatically choose a filename as output;
+-
+-## * Avoid overwriting files
+-     if the installed curl's version is \>= 7.83.0 (--no-clobber);
+-
+-## * Perform retries;
+-
+-## * Set the downloaded file timestamp
+-    to the value provided by the server, if available;
+-
+-## * Default to https
+-    if the URL does not contain any scheme;
+-
+-## * Disable curl's URL globbing parser
+-    so {} and [] characters in URLs are not treated specially;
+-
+-## * Percent-decode the resulting filename;
+-
+-## * Use 'index.html' as the default filename
+-    if there is none in the URL.
+-
+-# OPTIONS
+-
+-## --curl-options, --curl-options=\<CURL_OPTIONS\>...
+-
+-Specify extra options to be passed when invoking curl. May be specified more
+-than once.
+-
+-## -o, -O, --output, --output=\<PATH\>
+-
+-Use the provided output path instead of getting it from the URL. If multiple
+-URLs are provided, resulting files share the same name with a number appended to
+-the end (curl \>= 7.83.0). If this option is provided multiple times, only the
+-last value is considered.
+-
+-## --no-decode-filename
+-
+-Don't percent-decode the output filename, even if the percent-encoding in the
+-URL was done by **wcurl**, e.g.: The URL contained whitespaces.
+-
+-## --dry-run
+-
+-Do not actually execute curl, just print what would be invoked.
+-
+-## -V, \--version
+-
+-Print version information.
+-
+-## -h, \--help
+-
+-Print help message.
+-
+-# CURL_OPTIONS
+-
+-Any option supported by curl can be set here. This is not used by **wcurl**; it
+-is instead forwarded to the curl invocation.
+-
+-# URL
+-
+-URL to be downloaded. Anything that is not a parameter is considered
+-an URL. Whitespaces are percent-encoded and the URL is passed to curl, which
+-then performs the parsing. May be specified more than once.
+-
+-# EXAMPLES
+-
+-Download a single file:
+-
+-**wcurl example.com/filename.txt**
+-
+-Download two files in parallel:
+-
+-**wcurl example.com/filename1.txt example.com/filename2.txt**
+-
+-Download a file passing the **--progress-bar** and **--http2** flags to curl:
+-
+-**wcurl --curl-options="--progress-bar --http2" example.com/filename.txt**
+-
+-Resume from an interrupted download (if more options are used, this needs to
+-be the last one in the list):
+-
+-**wcurl --curl-options="--continue-at -" example.com/filename.txt**
+-
+-# AUTHORS
+-
+-    Samuel Henrique \<samueloph@debian.org\>
+-    Sergio Durigan Junior \<sergiodj@debian.org\>
+-    and many contributors, see the AUTHORS file.
+-
+-# REPORTING BUGS
+-
+-If you experience any problems with **wcurl** that you do not experience with
+-curl, submit an issue on Github: https://github.com/curl/wcurl
+-
+-# COPYRIGHT
+-
+-**wcurl** is licensed under the curl license
 diff --git a/export.sh b/export.sh
 new file mode 100755
 index 0000000000..0b981b811c
@@ -6307,6 +6667,28 @@ index dc6d3aa4cf..94778e4218 100644
  ])
  
  
+diff --git a/scripts/Makefile.am b/scripts/Makefile.am
+index 2c98aac9f7..59a14546f2 100644
+--- a/scripts/Makefile.am
++++ b/scripts/Makefile.am
+@@ -25,9 +25,15 @@
+ EXTRA_DIST = coverage.sh completion.pl firefox-db2pem.sh checksrc.pl checksrc-all.pl \
+   mk-ca-bundle.pl mk-unity.pl schemetable.c cd2nroff nroff2cd cdall cd2cd managen    \
+   dmaketgz maketgz release-tools.sh verify-release cmakelint.sh mdlinkcheck          \
+-  CMakeLists.txt pythonlint.sh randdisable wcurl top-complexity extract-unit-protos
++  CMakeLists.txt pythonlint.sh randdisable wcurl-impersonate top-complexity          \
++  extract-unit-protos
+ 
+-dist_bin_SCRIPTS = wcurl
++dist_bin_SCRIPTS = wcurl-impersonate
++
++wcurl-impersonate: $(srcdir)/wcurl-impersonate
++	if test "x$(srcdir)" != "x."; then \
++	  cp -f "$(srcdir)/wcurl-impersonate" "$@"; \
++	fi
+ 
+ ZSH_FUNCTIONS_DIR = @ZSH_FUNCTIONS_DIR@
+ FISH_FUNCTIONS_DIR = @FISH_FUNCTIONS_DIR@
 diff --git a/scripts/singleuse.pl b/scripts/singleuse.pl
 index b6ec18b47f..0606f50eb3 100755
 --- a/scripts/singleuse.pl
@@ -6319,6 +6701,121 @@ index b6ec18b47f..0606f50eb3 100755
      'curl_easy_pause' => 'API',
      'curl_easy_perform' => 'API',
      'curl_easy_recv' => 'API',
+diff --git a/scripts/wcurl b/scripts/wcurl-impersonate
+old mode 100755
+new mode 100644
+similarity index 87%
+rename from scripts/wcurl
+rename to scripts/wcurl-impersonate
+index af66ae7fca..b69d2cbb7a
+--- a/scripts/wcurl
++++ b/scripts/wcurl-impersonate
+@@ -1,8 +1,9 @@
+ #!/bin/sh
+ 
+-# wcurl - a simple wrapper around curl to easily download files.
++# wcurl-impersonate - a simple wrapper around curl-impersonate to easily
++# download files.
+ #
+-# Requires curl >= 7.46.0 (2015)
++# Requires curl-impersonate >= 7.46.0 (2015)
+ #
+ # Copyright (C) Samuel Henrique <samueloph@debian.org>, Sergio Durigan
+ # Junior <sergiodj@debian.org> and many contributors, see the AUTHORS
+@@ -46,7 +47,7 @@ _EOF_
+ usage()
+ {
+     cat << _EOF_
+-${PROGRAM_NAME} -- a simple wrapper around curl to easily download files.
++${PROGRAM_NAME} -- a simple wrapper around curl-impersonate to easily download files.
+ 
+ Usage: ${PROGRAM_NAME} <URL>...
+        ${PROGRAM_NAME} [--curl-options <CURL_OPTIONS>]... [--no-decode-filename] [-o|-O|--output <PATH>] [--dry-run] [--] <URL>...
+@@ -56,29 +57,33 @@ Usage: ${PROGRAM_NAME} <URL>...
+ 
+ Options:
+ 
+-  --curl-options <CURL_OPTIONS>: Specify extra options to be passed when invoking curl. May be
+-                                 specified more than once.
++  --curl-options <CURL_OPTIONS>: Specify extra options to be passed when invoking
++                                 curl-impersonate. May be specified more than once.
+ 
+   -o, -O, --output <PATH>: Use the provided output path instead of getting it from the URL. If
+                            multiple URLs are provided, resulting files share the same name with a
+-                           number appended to the end (curl >= 7.83.0). If this option is provided
+-                           multiple times, only the last value is considered.
++                           number appended to the end (curl-impersonate >= 7.83.0).
++                           If this option is provided multiple times, only the last
++                           value is considered.
+ 
+-  --no-decode-filename: Don't percent-decode the output filename, even if the percent-encoding in
+-                        the URL was done by wcurl, e.g.: The URL contained whitespaces.
++  --no-decode-filename: Don't percent-decode the output filename, even if the
++                        percent-encoding in the URL was done by
++                        ${PROGRAM_NAME}, e.g.: The URL contained whitespaces.
+ 
+-  --dry-run: Don't actually execute curl, just print what would be invoked.
++  --dry-run: Don't actually execute curl-impersonate, just print what would be invoked.
+ 
+   -V, --version: Print version information.
+ 
+   -h, --help: Print this usage message.
+ 
+-  <CURL_OPTIONS>: Any option supported by curl can be set here. This is not used by wcurl; it is
+-                 instead forwarded to the curl invocation.
++  <CURL_OPTIONS>: Any option supported by curl-impersonate can be set here. This
++                 is not used by ${PROGRAM_NAME}; it is instead forwarded to the
++                 curl-impersonate invocation.
+ 
+   <URL>: URL to be downloaded. Anything that is not a parameter is considered
+-         an URL. Whitespaces are percent-encoded and the URL is passed to curl, which
+-         then performs the parsing. May be specified more than once.
++         an URL. Whitespaces are percent-encoded and the URL is passed to
++         curl-impersonate, which then performs the parsing. May be specified
++         more than once.
+ _EOF_
+ }
+ 
+@@ -89,7 +94,7 @@ error()
+     exit 1
+ }
+ 
+-# Extra curl options provided by the user.
++# Extra curl-impersonate options provided by the user.
+ # This is set per-URL for every URL provided.
+ # Some options are global, but we are erroring on the side of needlesly setting
+ # them multiple times instead of causing issues with parameters that needs to
+@@ -104,7 +109,7 @@ URLS=""
+ OUTPUT_PATH=""
+ HAS_USER_SET_OUTPUT="false"
+ 
+-# The parameters that are passed per-URL to curl.
++# The parameters that are passed per-URL to curl-impersonate.
+ readonly PER_URL_PARAMETERS="\
+     --fail \
+     --globoff \
+@@ -113,7 +118,7 @@ readonly PER_URL_PARAMETERS="\
+     --remote-time \
+     --retry 5 "
+ 
+-# Whether to invoke curl or not.
++# Whether to invoke curl-impersonate or not.
+ DRY_RUN="false"
+ 
+ # Sanitize parameters.
+@@ -176,10 +181,10 @@ get_url_filename()
+     # No slash means there was just a hostname and no path; return empty string.
+ }
+ 
+-# Execute curl with the list of URLs provided by the user.
++# Execute curl-impersonate with the list of URLs provided by the user.
+ exec_curl()
+ {
+-    CMD="curl "
++    CMD="curl-impersonate "
+ 
+     # Store version to check if it supports --no-clobber and --parallel.
+     curl_version=$($CMD --version | cut -f2 -d' ' | head -n1)
 diff --git a/src/Makefile.am b/src/Makefile.am
 index 78e2f81243..6cff00a82f 100644
 --- a/src/Makefile.am
