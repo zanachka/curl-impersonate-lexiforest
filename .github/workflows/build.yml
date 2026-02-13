@@ -143,7 +143,6 @@ jobs:
         id: setup-ndk
         with:
           ndk-version: r26d
-          local-cache: true
 
       - name: Set Android toolchain env
         if: matrix.platform == 'android'
