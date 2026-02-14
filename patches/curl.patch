@@ -1291,7 +1291,7 @@ index 03d676df0e..035a93b35c 100644
  }
  #endif
 diff --git a/lib/http.c b/lib/http.c
-index e5a0696274..3321a27efd 100644
+index e5a0696274..631bb2793e 100644
 --- a/lib/http.c
 +++ b/lib/http.c
 @@ -85,6 +85,7 @@
@@ -1457,7 +1457,65 @@ index e5a0696274..3321a27efd 100644
  static CURLcode http_useragent(struct Curl_easy *data)
  {
    /* The User-Agent string might have been allocated in url.c already, because
-@@ -2451,47 +2565,110 @@ static CURLcode http_cookies(struct Curl_easy *data,
+@@ -1890,49 +2004,19 @@ static CURLcode http_host(struct Curl_easy *data, struct connectdata *conn)
+     data->state.first_remote_protocol = conn->handler->protocol;
+   }
+   Curl_safefree(aptr->host);
++#ifndef CURL_DISABLE_COOKIES
++  /* Cookies are matched against the URL host, not a custom Host: header. */
++  Curl_safefree(aptr->cookiehost);
++#endif
+ 
+   ptr = Curl_checkheaders(data, STRCONST("Host"));
+   if(ptr && (!data->state.this_is_a_follow ||
+              curl_strequal(data->state.first_host, conn->host.name))) {
+-#if !defined(CURL_DISABLE_COOKIES)
+-    /* If we have a given custom Host: header, we extract the hostname in
+-       order to possibly use it for cookie reasons later on. We only allow the
+-       custom Host: header if this is NOT a redirect, as setting Host: in the
+-       redirected request is being out on thin ice. Except if the hostname
+-       is the same as the first one! */
+-    char *cookiehost = Curl_copy_header_value(ptr);
+-    if(!cookiehost)
+-      return CURLE_OUT_OF_MEMORY;
+-    if(!*cookiehost)
+-      /* ignore empty data */
+-      free(cookiehost);
+-    else {
+-      /* If the host begins with '[', we start searching for the port after
+-         the bracket has been closed */
+-      if(*cookiehost == '[') {
+-        char *closingbracket;
+-        /* since the 'cookiehost' is an allocated memory area that will be
+-           freed later we cannot simply increment the pointer */
+-        memmove(cookiehost, cookiehost + 1, strlen(cookiehost) - 1);
+-        closingbracket = strchr(cookiehost, ']');
+-        if(closingbracket)
+-          *closingbracket = 0;
+-      }
+-      else {
+-        int startsearch = 0;
+-        char *colon = strchr(cookiehost + startsearch, ':');
+-        if(colon)
+-          *colon = 0; /* The host must not include an embedded port number */
+-      }
+-      free(aptr->cookiehost);
+-      aptr->cookiehost = cookiehost;
+-    }
+-#endif
+-
+     if(!curl_strequal("Host:", ptr)) {
+-      aptr->host = aprintf("Host:%s\r\n", &ptr[5]);
+-      if(!aptr->host)
+-        return CURLE_OUT_OF_MEMORY;
++      /* Keep custom Host: in the user header list path so it is emitted
++         in the same relative order as other user-provided headers.
++         Cookie matching follows the URL host. */
++      aptr->host = NULL;
+     }
+   }
+   else {
+@@ -2451,47 +2535,110 @@ static CURLcode http_cookies(struct Curl_easy *data,
                                 secure_context, &list);
        Curl_share_unlock(data, CURL_LOCK_DATA_COOKIE);
      }
@@ -1596,7 +1654,7 @@ index e5a0696274..3321a27efd 100644
  
      if(result)
        return result;
-@@ -2669,7 +2846,6 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
+@@ -2669,7 +2816,6 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
    const char *httpstring;
    struct dynbuf req;
    char *altused = NULL;
@@ -1604,7 +1662,7 @@ index e5a0696274..3321a27efd 100644
    unsigned char httpversion;
  
    /* Always consider the DO phase done after this function call, even if there
-@@ -2715,6 +2891,11 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
+@@ -2715,6 +2861,11 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
    if(result)
      goto fail;
  
@@ -1616,7 +1674,7 @@ index e5a0696274..3321a27efd 100644
    result = http_host(data, conn);
    if(result)
      goto fail;
-@@ -2772,9 +2953,6 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
+@@ -2772,9 +2923,6 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
    if(result)
      goto fail;
  
@@ -1626,7 +1684,7 @@ index e5a0696274..3321a27efd 100644
    result = http_range(data, httpreq);
    if(result)
      goto fail;
-@@ -2837,7 +3015,7 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
+@@ -2837,7 +2985,7 @@ CURLcode Curl_http(struct Curl_easy *data, bool *done)
                      *data->set.str[STRING_USERAGENT] &&
                      data->state.aptr.uagent) ?
                     data->state.aptr.uagent : "",
@@ -1635,7 +1693,7 @@ index e5a0696274..3321a27efd 100644
                     data->state.aptr.te ? data->state.aptr.te : "",
                     (data->set.str[STRING_ENCODING] &&
                      *data->set.str[STRING_ENCODING] &&
-@@ -4620,6 +4798,29 @@ static bool http_TE_has_token(const char *fvalue, const char *token)
+@@ -4620,6 +4768,29 @@ static bool http_TE_has_token(const char *fvalue, const char *token)
    return FALSE;
  }
  
@@ -1665,7 +1723,7 @@ index e5a0696274..3321a27efd 100644
  CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
                               struct httpreq *req, struct Curl_easy *data)
  {
-@@ -4628,6 +4829,10 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
+@@ -4628,6 +4799,10 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
    size_t i;
    CURLcode result;
  
@@ -1676,7 +1734,7 @@ index e5a0696274..3321a27efd 100644
    DEBUGASSERT(req);
    DEBUGASSERT(h2_headers);
  
-@@ -4658,20 +4863,42 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
+@@ -4658,20 +4833,42 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
  
    Curl_dynhds_reset(h2_headers);
    Curl_dynhds_set_opts(h2_headers, DYNHDS_OPT_LOWERCASE);
@@ -1731,7 +1789,7 @@ index e5a0696274..3321a27efd 100644
    for(i = 0; !result && i < Curl_dynhds_count(&req->headers); ++i) {
      e = Curl_dynhds_getn(&req->headers, i);
      /* "TE" is special in that it is only permissible when it
-@@ -4684,6 +4911,8 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
+@@ -4684,6 +4881,8 @@ CURLcode Curl_http_req_to_h2(struct dynhds *h2_headers,
      else if(h2_permissible_field(e)) {
        result = Curl_dynhds_add(h2_headers, e->name, e->namelen,
                                 e->value, e->valuelen);
