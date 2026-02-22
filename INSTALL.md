@@ -4,8 +4,8 @@ This guide shows how to compile and install curl-impersonate and libcurl-imperso
 The build process takes care of downloading dependencies, patching them, compiling them and finally compiling curl itself with the needed patches.
 There are currently three build options depending on your use case:
 
-* [Native build](#native-build) using cmake
-* [Cross compiling](#cross-compiling) using cmake
+* [Native build](#native-build) using an autotools-based Makefile
+* [Cross compiling](#cross-compiling) using an autotools-based Makefile
 * [Docker container build](#docker-build)
 
 Unlike the upstream project, there is only one version in this fork, namely the Chrome version, for impersonating all main stream browsers.
@@ -19,6 +19,7 @@ Install dependencies for building all the components:
 ```sh
 sudo apt install build-essential pkg-config cmake ninja-build curl autoconf automake libtool
 sudo apt install golang-go unzip
+sudo apt install zstd libzstd-dev
 ```
 
 Clone this repository:
@@ -31,14 +32,13 @@ cd curl-impersonate
 Configure and compile:
 
 ```sh
-cmake -S . -B build-cmake
-cmake --build build-cmake --target curl-impersonate
-
-cmake --build build-cmake --target install-all
-
+mkdir build && cd build
+../configure
+# Build and install
+make build
+sudo make install
 # You may need to update the linker's cache to find libcurl-impersonate
 sudo ldconfig
-
 # Optionally remove all the build files
 cd ../ && rm -Rf build
 ```
@@ -69,6 +69,7 @@ yum install cmake3 python3 python3-pip
 yum install ninja-build
 # OR
 pip3 install ninja
+yum install zstd libzstd-devel
 ```
 
 For the Chrome version, install Go.
@@ -86,6 +87,8 @@ Install dependencies for building all the components:
 
 ```sh
 brew install pkg-config make cmake ninja autoconf automake libtool
+brew install zstd
+brew install go
 ```
 
 Clone this repository:
