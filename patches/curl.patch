@@ -2503,7 +2503,7 @@ index 93cc2d44f2..52e80ce9c1 100644
   * Store nghttp2 version info in this buffer.
 diff --git a/lib/impersonate.c b/lib/impersonate.c
 new file mode 100644
-index 0000000000..c76e42bc72
+index 0000000000..264863bd09
 --- /dev/null
 +++ b/lib/impersonate.c
 @@ -0,0 +1,2273 @@
@@ -3455,7 +3455,7 @@ index 0000000000..c76e42bc72
 +    .http2_stream_exclusive = 1,
 +    .http3_settings = "1:65536;6:262144;7:100;51:1;GREASE",
 +    .http3_pseudo_headers_order = "masp",
-+    .quic_transport_parameters = "1:30000;3:1472;4:15728640;5:6291456;6:6291456;7:6291456;8:100;9:103;15:;17:1@1,GREASE;32:65536;12583:AUTO;18258:1;GREASE",
++    .quic_transport_parameters = "1:30000;3:1472;4:15728640;5:6291456;6:6291456;7:6291456;8:100;9:103;15:;17:1@1,GREASE;32:65536;12583:AUTO;12584:0x4f524947;GREASE",
 +    .http3_tls_extension_order = "0-10-13-16-27-43-45-51-57-17613-65037",
 +    .ech = "true",
 +    .tls_extension_order = NULL,
@@ -6416,7 +6416,7 @@ index e54721dd98..9fd2bea892 100644
  
  #ifndef CURL_DISABLE_MIME
 diff --git a/lib/vquic/curl_ngtcp2.c b/lib/vquic/curl_ngtcp2.c
-index 69d54ecce2..5ff86c4a0c 100644
+index 69d54ecce2..2807fc3747 100644
 --- a/lib/vquic/curl_ngtcp2.c
 +++ b/lib/vquic/curl_ngtcp2.c
 @@ -56,8 +56,10 @@
@@ -6529,7 +6529,7 @@ index 69d54ecce2..5ff86c4a0c 100644
    s->initial_ts = pktx->ts;
    s->handshake_timeout = QUIC_HANDSHAKE_TIMEOUT;
    s->max_window = 100 * ctx->max_stream_window;
-@@ -447,6 +495,822 @@ static void quic_settings(struct cf_ngtcp2_ctx *ctx,
+@@ -447,6 +495,862 @@ static void quic_settings(struct cf_ngtcp2_ctx *ctx,
    if(ctx->qlogfd != -1) {
      s->qlog_write = qlog_callback;
    }
@@ -7061,6 +7061,7 @@ index 69d54ecce2..5ff86c4a0c 100644
 +    bool value_is_auto = FALSE;
 +    bool value_is_empty_initial_scid = FALSE;
 +    bool value_is_initial_rtt_auto = FALSE;
++    bool value_is_hex_bytes = FALSE;
 +
 +    setting = tokens[i];
 +    colon = strchr(setting, ':');
@@ -7104,6 +7105,9 @@ index 69d54ecce2..5ff86c4a0c 100644
 +      else if(id == QUIC_TP_VERSION_INFORMATION) {
 +        /* Parsed by dedicated handler below. */
 +      }
++      else if(value_str[0] == '0' && (value_str[1] == 'x' ||
++                                       value_str[1] == 'X'))
++        value_is_hex_bytes = TRUE;
 +      else {
 +        value = strtoull(value_str, &end, 10);
 +        if(!*value_str || (end && *end)) {
@@ -7156,6 +7160,42 @@ index 69d54ecce2..5ff86c4a0c 100644
 +    }
 +    if(value_is_empty_initial_scid) {
 +      result = quic_raw_append_param_bytes(raw, id, NULL, 0);
++      if(result)
++        goto out;
++      continue;
++    }
++    if(value_is_hex_bytes) {
++      const char *hex = value_str + 2; /* skip "0x" */
++      size_t hex_len = strlen(hex);
++      size_t byte_len;
++      unsigned char *bytes;
++      size_t j;
++
++      if((hex_len == 0) || (hex_len % 2 != 0)) {
++        failf(data, "QUIC transport param %" FMT_PRIu64
++              " has invalid hex value", (curl_uint64_t)id);
++        result = CURLE_BAD_FUNCTION_ARGUMENT;
++        goto out;
++      }
++      byte_len = hex_len / 2;
++      bytes = malloc(byte_len);
++      if(!bytes) {
++        result = CURLE_OUT_OF_MEMORY;
++        goto out;
++      }
++      for(j = 0; j < byte_len; j++) {
++        unsigned int byte_val;
++        if(sscanf(hex + 2 * j, "%2x", &byte_val) != 1) {
++          free(bytes);
++          failf(data, "QUIC transport param %" FMT_PRIu64
++                " has invalid hex value", (curl_uint64_t)id);
++          result = CURLE_BAD_FUNCTION_ARGUMENT;
++          goto out;
++        }
++        bytes[j] = (unsigned char)byte_val;
++      }
++      result = quic_raw_append_param_bytes(raw, id, bytes, byte_len);
++      free(bytes);
 +      if(result)
 +        goto out;
 +      continue;
@@ -7352,7 +7392,7 @@ index 69d54ecce2..5ff86c4a0c 100644
  }
  
  static CURLcode init_ngh3_conn(struct Curl_cfilter *cf,
-@@ -1190,6 +2054,10 @@ static CURLcode init_ngh3_conn(struct Curl_cfilter *cf,
+@@ -1190,6 +2094,10 @@ static CURLcode init_ngh3_conn(struct Curl_cfilter *cf,
  {
    struct cf_ngtcp2_ctx *ctx = cf->ctx;
    int64_t ctrl_stream_id, qpack_enc_stream_id, qpack_dec_stream_id;
@@ -7363,7 +7403,7 @@ index 69d54ecce2..5ff86c4a0c 100644
    int rc;
  
    if(ngtcp2_conn_get_streams_uni_left(ctx->qconn) < 3) {
-@@ -1197,7 +2065,15 @@ static CURLcode init_ngh3_conn(struct Curl_cfilter *cf,
+@@ -1197,7 +2105,15 @@ static CURLcode init_ngh3_conn(struct Curl_cfilter *cf,
      return CURLE_QUIC_CONNECT_ERROR;
    }
  
@@ -7379,7 +7419,7 @@ index 69d54ecce2..5ff86c4a0c 100644
  
    rc = nghttp3_conn_client_new(&ctx->h3conn,
                                 &ngh3_callbacks,
-@@ -1205,10 +2081,23 @@ static CURLcode init_ngh3_conn(struct Curl_cfilter *cf,
+@@ -1205,10 +2121,23 @@ static CURLcode init_ngh3_conn(struct Curl_cfilter *cf,
                                 nghttp3_mem_default(),
                                 cf);
    if(rc) {
@@ -7403,7 +7443,7 @@ index 69d54ecce2..5ff86c4a0c 100644
    rc = ngtcp2_conn_open_uni_stream(ctx->qconn, &ctrl_stream_id, NULL);
    if(rc) {
      failf(data, "error creating HTTP/3 control stream: %s",
-@@ -2420,9 +3309,6 @@ static CURLcode cf_connect_start(struct Curl_cfilter *cf,
+@@ -2420,9 +3349,6 @@ static CURLcode cf_connect_start(struct Curl_cfilter *cf,
    CURLcode result;
    const struct Curl_sockaddr_ex *sockaddr = NULL;
    int qfd;
@@ -7413,7 +7453,7 @@ index 69d54ecce2..5ff86c4a0c 100644
  
    DEBUGASSERT(ctx->initialized);
    ctx->dcid.datalen = NGTCP2_MAX_CIDLEN;
-@@ -2431,19 +3317,27 @@ static const struct alpn_spec ALPN_SPEC_H3 = {
+@@ -2431,19 +3357,27 @@ static const struct alpn_spec ALPN_SPEC_H3 = {
      return result;
  
    ctx->scid.datalen = NGTCP2_MAX_CIDLEN;
@@ -7447,7 +7487,7 @@ index 69d54ecce2..5ff86c4a0c 100644
    if(!sockaddr)
      return CURLE_QUIC_CONNECT_ERROR;
    ctx->q.local_addrlen = sizeof(ctx->q.local_addr);
-@@ -2466,6 +3360,19 @@ static const struct alpn_spec ALPN_SPEC_H3 = {
+@@ -2466,6 +3400,19 @@ static const struct alpn_spec ALPN_SPEC_H3 = {
    if(rc)
      return CURLE_QUIC_CONNECT_ERROR;
  
@@ -7467,7 +7507,7 @@ index 69d54ecce2..5ff86c4a0c 100644
    ctx->conn_ref.get_conn = get_conn;
    ctx->conn_ref.user_data = cf;
  
-@@ -2578,7 +3485,7 @@ out:
+@@ -2578,7 +3525,7 @@ out:
    if(result) {
      struct ip_quadruple ip;
  
@@ -7476,7 +7516,7 @@ index 69d54ecce2..5ff86c4a0c 100644
      infof(data, "QUIC connect to %s port %u failed: %s",
            ip.remote_ip, ip.remote_port, curl_easy_strerror(result));
    }
-@@ -2732,7 +3639,10 @@ CURLcode Curl_cf_ngtcp2_create(struct Curl_cfilter **pcf,
+@@ -2732,7 +3679,10 @@ CURLcode Curl_cf_ngtcp2_create(struct Curl_cfilter **pcf,
                                 const struct Curl_addrinfo *ai)
  {
    struct cf_ngtcp2_ctx *ctx = NULL;
@@ -7488,7 +7528,7 @@ index 69d54ecce2..5ff86c4a0c 100644
    CURLcode result;
  
    (void)data;
-@@ -2747,20 +3657,41 @@ CURLcode Curl_cf_ngtcp2_create(struct Curl_cfilter **pcf,
+@@ -2747,20 +3697,41 @@ CURLcode Curl_cf_ngtcp2_create(struct Curl_cfilter **pcf,
    if(result)
      goto out;
  
