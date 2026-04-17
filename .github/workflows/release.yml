@@ -52,6 +52,6 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ steps.collect-release-files.outputs.files }}
