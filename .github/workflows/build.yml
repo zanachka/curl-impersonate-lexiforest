@@ -211,25 +211,32 @@ jobs:
           # Dependencies for the tests
           brew install tcpdump curl nghttp2
 
-      - name: Run configure script
+      - name: Build release artifacts
         run: |
           set -e
-          mkdir ${{ runner.temp }}/install
+          install_dir="${{ runner.temp }}/install"
+          mkdir -p "$install_dir"
+
+          configure_args=(--prefix="$install_dir")
           if [[ "${{ matrix.platform }}" == "ios" ]]; then
-            ./configure --prefix=${{ runner.temp }}/install --enable-static --disable-shared \
-                        --host=${{ matrix.host }}
+            configure_args+=(--host=${{ matrix.host }})
           elif [[ "${{ runner.os }}" == "Linux" ]]; then
-            ./configure --prefix=${{ runner.temp }}/install --enable-static --disable-shared \
-                        --host=${{ matrix.host }} \
-                        --with-ca-path=/etc/ssl/certs \
-                        --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
-          else
-            ./configure --prefix=${{ runner.temp }}/install --enable-static --disable-shared
+            configure_args+=(--host=${{ matrix.host }})
+            configure_args+=(--with-ca-path=/etc/ssl/certs)
+            configure_args+=(--with-ca-bundle=/etc/ssl/certs/ca-certificates.crt)
           fi
 
-      - name: Build statically
-        run: |
-          set -e
+          if [[ "${{ matrix.platform }}" != "ios" ]]; then
+            ./configure "${configure_args[@]}"
+            ${{ matrix.make }} build
+            ${{ matrix.make }} checkbuild
+            ${{ matrix.make }} install
+          fi
+
+          # Reconfigure for the static CLI/archive build while preserving the
+          # shared-library install from the first pass.
+          ./configure "${configure_args[@]}" --enable-static
+          rm -f curl-*/.chrome
           ${{ matrix.make }} build
           ${{ matrix.make }} checkbuild
           if [[ "${{ runner.os }}" == "Linux" && "${{ endsWith(matrix.host, 'musl') }}" == "true" ]]; then
