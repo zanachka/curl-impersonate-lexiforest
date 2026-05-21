@@ -574,6 +574,12 @@ else()
       PATTERN "libcurl-impersonate*.dylib*"
   )
 endif()
+install(
+  DIRECTORY "${DEPS_SRC_DIR}/curl/include/curl"
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  FILES_MATCHING
+    PATTERN "*.h"
+)
 if(WIN32)
   file(GLOB _curl_wrapper_scripts CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/win/bin/curl_*.bat")
 else()

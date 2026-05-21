@@ -74,7 +74,7 @@ jobs:
             lib_tar="libcurl-impersonate-${suffix}.tar.gz"
           fi
           tar -czf "$curl_tar" -C packages/bin .
-          tar -czf "$lib_tar"  -C packages/lib .
+          tar -czf "$lib_tar"  -C packages lib include
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
