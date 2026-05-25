@@ -1,4 +1,4 @@
-name: "Build on Linux/Darwin"
+name: "Build on Linux/Darwin/BSD"
 
 on:
   workflow_call:
@@ -336,6 +336,108 @@ jobs:
         with:
           name: ios-slice.${{ matrix.host_label }}
           path: ${{ runner.temp }}/ios-slice
+
+  build-freebsd:
+    name: (${{ matrix.host_label }}) Build curl-impersonate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - vm_arch: x86_64
+            host_label: x86_64-freebsd
+            release_only: false
+          - vm_arch: aarch64
+            host_label: aarch64-freebsd
+            release_only: true
+    steps:
+      - name: Skip release-only FreeBSD target
+        if: ${{ matrix.release_only && !startsWith(github.ref, 'refs/tags/') }}
+        run: echo "Skipping ${{ matrix.host_label }} outside release tag builds."
+
+      - name: Check out the repo
+        if: ${{ !matrix.release_only || startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/checkout@v2
+
+      - name: Build in FreeBSD
+        if: ${{ !matrix.release_only || startsWith(github.ref, 'refs/tags/') }}
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "14.3"
+          arch: ${{ matrix.vm_arch }}
+          cpu: 4
+          mem: 8192
+          usesh: true
+          prepare: |
+            pkg update -f
+            pkg install -y pkgconf cmake ninja curl autoconf automake libtool gmake gperf go
+          run: |
+            set -e
+            install_dir="$PWD/freebsd-install"
+            artifacts_dir="$PWD/freebsd-artifacts"
+            rm -rf build-freebsd "$install_dir" "$artifacts_dir"
+            mkdir -p "$install_dir" "$artifacts_dir"
+
+            cmake_args="-G Ninja -DCMAKE_INSTALL_PREFIX=$install_dir"
+            cmake_args="$cmake_args -DUSE_LIBIDN2=OFF"
+
+            gmake configure BUILD_DIR=build-freebsd CMAKE_CONFIGURE_ARGS="$cmake_args"
+            gmake build BUILD_DIR=build-freebsd CMAKE_CONFIGURE_ARGS="$cmake_args"
+
+            v="$(build-freebsd/deps/build/curl/src/curl-impersonate -V)"
+            echo "$v"
+            echo "$v" | grep -q zlib
+            echo "$v" | grep -q zstd
+            echo "$v" | grep -q brotli
+            echo "$v" | grep -q nghttp2
+            echo "$v" | grep -q BoringSSL
+
+            gmake install-strip BUILD_DIR=build-freebsd CMAKE_CONFIGURE_ARGS="$cmake_args"
+
+            install_lib_dir="$install_dir/lib"
+            deps_lib_dir="$PWD/build-freebsd/deps/install/lib"
+
+            cp "$deps_lib_dir/libz.a" "$install_lib_dir/"
+            cp "$deps_lib_dir/libzstd.a" "$install_lib_dir/"
+            cp "$deps_lib_dir/libbrotlidec.a" "$install_lib_dir/"
+            cp "$deps_lib_dir/libbrotlicommon.a" "$install_lib_dir/"
+            cp "$deps_lib_dir/libbrotlienc.a" "$install_lib_dir/"
+            cp "$deps_lib_dir/libnghttp2.a" "$install_lib_dir/"
+            cp "$deps_lib_dir/libnghttp3.a" "$install_lib_dir/"
+            cp "$deps_lib_dir/libngtcp2.a" "$install_lib_dir/"
+            cp "$deps_lib_dir/libngtcp2_crypto_boringssl.a" "$install_lib_dir/"
+            cp "$deps_lib_dir/libssl.a" "$install_lib_dir/"
+            cp "$deps_lib_dir/libcrypto.a" "$install_lib_dir/"
+
+            cd "$install_lib_dir"
+            mv libcurl-impersonate.a libcurl-impersonate.orig.a
+            cc -r -o libcurl-impersonate.full.o -Wl,--whole-archive \
+              libcurl-impersonate.orig.a libz.a libzstd.a \
+              libbrotlidec.a libbrotlicommon.a libbrotlienc.a \
+              libnghttp2.a libnghttp3.a libngtcp2.a \
+              libngtcp2_crypto_boringssl.a libssl.a libcrypto.a \
+              -Wl,--no-whole-archive
+            ar rcs libcurl-impersonate.a libcurl-impersonate.full.o
+            rm -f libcurl-impersonate.full.o
+            rm -f libz.a libzstd.a libbrotlidec.a libbrotlicommon.a libbrotlienc.a libnghttp2.a libnghttp3.a libngtcp2.a libngtcp2_crypto_boringssl.a libssl.a libcrypto.a
+            rm -f libcurl-impersonate.orig.a
+
+            if [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
+              tar -czf "$artifacts_dir/libcurl-impersonate-${{ github.ref_name }}.${{ matrix.host_label }}.tar.gz" lib* -C "$install_dir" include
+              cd "$install_dir/bin"
+              tar -czf "$artifacts_dir/curl-impersonate-${{ github.ref_name }}.${{ matrix.host_label }}.tar.gz" curl-impersonate curl_*
+            else
+              tar -czf "$artifacts_dir/libcurl-impersonate.${{ matrix.host_label }}.tar.gz" lib* -C "$install_dir" include
+              cd "$install_dir/bin"
+              tar -czf "$artifacts_dir/curl-impersonate.${{ matrix.host_label }}.tar.gz" curl-impersonate curl_*
+            fi
+
+      - name: Upload FreeBSD artifacts
+        if: ${{ !matrix.release_only || startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts.${{ matrix.host_label }}
+          path: freebsd-artifacts/*.tar.gz
 
   ios-xcframework:
     name: (iOS) Create XCFramework
