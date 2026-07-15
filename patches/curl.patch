@@ -8493,7 +8493,7 @@ index dfb8346c1a..602402e256 100644
    return CURLE_OK;
  }
 diff --git a/lib/vtls/openssl.c b/lib/vtls/openssl.c
-index 010bbb9825..b1a4be9ae6 100644
+index 010bbb9825..a5bdd880be 100644
 --- a/lib/vtls/openssl.c
 +++ b/lib/vtls/openssl.c
 @@ -68,9 +68,24 @@
@@ -8521,7 +8521,7 @@ index 010bbb9825..b1a4be9ae6 100644
  #if defined(HAVE_SSL_SET1_ECH_CONFIG_LIST) && !defined(HAVE_BORINGSSL_LIKE)
  #include <openssl/ech.h>
  #endif
-@@ -165,6 +180,114 @@
+@@ -165,6 +180,117 @@
  
  #ifdef HAVE_BORINGSSL_LIKE
  typedef size_t numcert_t;
@@ -8552,6 +8552,9 @@ index 010bbb9825..b1a4be9ae6 100644
 +    {SSL_SIGN_RSA_PSS_RSAE_SHA384, "rsa_pss_rsae_sha384"},
 +    {SSL_SIGN_RSA_PSS_RSAE_SHA512, "rsa_pss_rsae_sha512"},
 +    {SSL_SIGN_ED25519, "ed25519"},
++    {SSL_SIGN_ML_DSA_44, "mldsa44"},
++    {SSL_SIGN_ML_DSA_65, "mldsa65"},
++    {SSL_SIGN_ML_DSA_87, "mldsa87"},
 +};
 +
 +#define MAX_SIG_ALGS \
@@ -8636,7 +8639,7 @@ index 010bbb9825..b1a4be9ae6 100644
  typedef uint32_t sslerr_t;
  #else
  typedef int numcert_t;
-@@ -2453,6 +2576,191 @@ static const char *tls_rt_type(int type)
+@@ -2453,6 +2579,191 @@ static const char *tls_rt_type(int type)
    }
  }
  
@@ -8828,7 +8831,7 @@ index 010bbb9825..b1a4be9ae6 100644
  /*
   * Our callback from the SSL/TLS layers.
   */
-@@ -3449,6 +3757,11 @@ static CURLcode ossl_init_ech(struct ossl_ctx *octx,
+@@ -3449,6 +3760,11 @@ static CURLcode ossl_init_ech(struct ossl_ctx *octx,
    if(!CURLECH_ENABLED(data))
      return CURLE_OK;
  
@@ -8840,7 +8843,7 @@ index 010bbb9825..b1a4be9ae6 100644
    if(data->set.tls_ech == CURLECH_GREASE) {
      infof(data, "ECH: will GREASE ClientHello");
  #ifdef HAVE_BORINGSSL_LIKE
-@@ -3545,11 +3858,18 @@ static CURLcode ossl_init_ech(struct ossl_ctx *octx,
+@@ -3545,11 +3861,18 @@ static CURLcode ossl_init_ech(struct ossl_ctx *octx,
      }
    }
  #endif /* HAVE_BORINGSSL_LIKE */
@@ -8861,7 +8864,7 @@ index 010bbb9825..b1a4be9ae6 100644
  
    return CURLE_OK;
  }
-@@ -3569,6 +3889,11 @@ static CURLcode ossl_init_ssl(struct ossl_ctx *octx,
+@@ -3569,6 +3892,11 @@ static CURLcode ossl_init_ssl(struct ossl_ctx *octx,
                                void *ssl_user_data,
                                Curl_ossl_init_session_reuse_cb *sess_reuse_cb)
  {
@@ -8873,7 +8876,7 @@ index 010bbb9825..b1a4be9ae6 100644
    /* Let's make an SSL structure */
    if(octx->ssl)
      SSL_free(octx->ssl);
-@@ -3580,6 +3905,34 @@ static CURLcode ossl_init_ssl(struct ossl_ctx *octx,
+@@ -3580,6 +3908,34 @@ static CURLcode ossl_init_ssl(struct ossl_ctx *octx,
  
    SSL_set_app_data(octx->ssl, ssl_user_data);
  
@@ -8908,7 +8911,7 @@ index 010bbb9825..b1a4be9ae6 100644
  #ifndef OPENSSL_NO_OCSP
    if(Curl_ssl_cf_get_primary_config(cf)->verifystatus)
      SSL_set_tlsext_status_type(octx->ssl, TLSEXT_STATUSTYPE_ocsp);
-@@ -3759,7 +4112,15 @@ CURLcode Curl_ossl_ctx_init(struct ossl_ctx *octx,
+@@ -3759,7 +4115,15 @@ CURLcode Curl_ossl_ctx_init(struct ossl_ctx *octx,
       SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS bit must not be set.
    */
  
@@ -8925,7 +8928,7 @@ index 010bbb9825..b1a4be9ae6 100644
  
    /* mitigate CVE-2010-4180 */
    ctx_options &= ~(ctx_option_t)SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG;
-@@ -3815,6 +4176,21 @@ CURLcode Curl_ossl_ctx_init(struct ossl_ctx *octx,
+@@ -3815,6 +4179,21 @@ CURLcode Curl_ossl_ctx_init(struct ossl_ctx *octx,
    /* We do retry writes sometimes from another buffer address */
    SSL_CTX_set_mode(octx->ssl_ctx, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
  
@@ -8947,7 +8950,7 @@ index 010bbb9825..b1a4be9ae6 100644
    ciphers = conn_config->cipher_list;
    if(!ciphers && (peer->transport != TRNSPRT_QUIC))
      ciphers = NULL;
-@@ -3873,7 +4249,8 @@ CURLcode Curl_ossl_ctx_init(struct ossl_ctx *octx,
+@@ -3873,7 +4252,8 @@ CURLcode Curl_ossl_ctx_init(struct ossl_ctx *octx,
      }
    }
  
@@ -8957,7 +8960,7 @@ index 010bbb9825..b1a4be9ae6 100644
  #define OSSL_SIGALG_CAST(x) OSSL_CURVE_CAST(x)
    {
      const char *signature_algorithms = conn_config->signature_algorithms;
-@@ -3888,6 +4265,34 @@ CURLcode Curl_ossl_ctx_init(struct ossl_ctx *octx,
+@@ -3888,6 +4268,34 @@ CURLcode Curl_ossl_ctx_init(struct ossl_ctx *octx,
    }
  #endif
  
@@ -8992,7 +8995,7 @@ index 010bbb9825..b1a4be9ae6 100644
  #if defined(HAVE_OPENSSL_SRP) && defined(USE_TLS_SRP)
    if(ssl_config->primary.username && Curl_auth_allowed_to_host(data)) {
      char * const ssl_username = ssl_config->primary.username;
-@@ -3913,6 +4318,56 @@ CURLcode Curl_ossl_ctx_init(struct ossl_ctx *octx,
+@@ -3913,6 +4321,56 @@ CURLcode Curl_ossl_ctx_init(struct ossl_ctx *octx,
    }
  #endif /* HAVE_OPENSSL_SRP && USE_TLS_SRP */
  
