@@ -97,6 +97,35 @@ if(NOT PATCH_EXE)
   set(PATCH_EXE patch)
 endif()
 
+function(_invalidate_external_project project reason)
+  message(STATUS "${reason}; invalidating the ${project} external project")
+  file(REMOVE_RECURSE
+    "${CMAKE_BINARY_DIR}/${project}-prefix/src/${project}-stamp"
+    "${DEPS_SRC_DIR}/${project}"
+    "${DEPS_BUILD_DIR}/${project}"
+  )
+endfunction()
+
+function(_track_external_project_patch project patch_file_var patch_changed_var)
+  set(_patch_file "${CMAKE_SOURCE_DIR}/patches/${project}.patch")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${_patch_file}"
+  )
+
+  set(_patch_changed OFF)
+  set(_patch_stamp
+    "${CMAKE_BINARY_DIR}/${project}-prefix/src/${project}-stamp/${project}-patch"
+  )
+  if(EXISTS "${_patch_stamp}" AND
+     "${_patch_file}" IS_NEWER_THAN "${_patch_stamp}")
+    set(_patch_changed ON)
+    _invalidate_external_project("${project}" "${project}.patch changed")
+  endif()
+
+  set(${patch_file_var} "${_patch_file}" PARENT_SCOPE)
+  set(${patch_changed_var} "${_patch_changed}" PARENT_SCOPE)
+endfunction()
+
 set(_toolchain_cmake_args)
 if(CMAKE_C_COMPILER)
   list(APPEND _toolchain_cmake_args "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}")
@@ -186,13 +215,14 @@ ExternalProject_Add(zstd
 )
 
 # brotli
+_track_external_project_patch(brotli _brotli_patch_file _brotli_patch_changed)
 ExternalProject_Add(brotli
   URL "${BROTLI_URL}"
   URL_HASH "${BROTLI_URL_HASH}"
   SOURCE_DIR "${DEPS_SRC_DIR}/brotli"
   BINARY_DIR "${DEPS_BUILD_DIR}/brotli"
   INSTALL_DIR "${DEPS_INSTALL_DIR}"
-  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${CMAKE_SOURCE_DIR}/patches/brotli.patch"
+  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${_brotli_patch_file}"
   CMAKE_ARGS
     ${_common_cmake_args}
     -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
@@ -227,12 +257,15 @@ if(DISABLE_BORINGSSL_ASM)
   list(APPEND _boringssl_cmake_args -DOPENSSL_NO_ASM=ON)
 endif()
 
+_track_external_project_patch(
+  boringssl _boringssl_patch_file _boringssl_patch_changed
+)
 ExternalProject_Add(boringssl
   URL "${BORINGSSL_URL}"
   URL_HASH "${BORINGSSL_URL_HASH}"
   SOURCE_DIR "${DEPS_SRC_DIR}/boringssl"
   BINARY_DIR "${DEPS_BUILD_DIR}/boringssl"
-  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${CMAKE_SOURCE_DIR}/patches/boringssl.patch"
+  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${_boringssl_patch_file}"
   CMAKE_ARGS ${_boringssl_cmake_args}
   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target ssl crypto --parallel ${SUBJOBS}
   INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install --parallel ${SUBJOBS}
@@ -277,13 +310,14 @@ ExternalProject_Add(nghttp2
 )
 
 # nghttp3
+_track_external_project_patch(nghttp3 _nghttp3_patch_file _nghttp3_patch_changed)
 ExternalProject_Add(nghttp3
   URL "${NGHTTP3_URL}"
   URL_HASH "${NGHTTP3_URL_HASH}"
   SOURCE_DIR "${DEPS_SRC_DIR}/nghttp3"
   BINARY_DIR "${DEPS_BUILD_DIR}/nghttp3"
   INSTALL_DIR "${DEPS_INSTALL_DIR}"
-  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${CMAKE_SOURCE_DIR}/patches/nghttp3.patch"
+  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${_nghttp3_patch_file}"
   CMAKE_ARGS
     ${_common_cmake_args}
     ${_shadow_avoid_cmake_args}
@@ -305,6 +339,10 @@ ExternalProject_Add(nghttp3
 )
 
 # ngtcp2
+_track_external_project_patch(ngtcp2 _ngtcp2_patch_file _ngtcp2_patch_changed)
+if(_boringssl_patch_changed)
+  _invalidate_external_project(ngtcp2 "boringssl.patch changed")
+endif()
 ExternalProject_Add(ngtcp2
   LIST_SEPARATOR |
   URL "${NGTCP2_URL}"
@@ -312,7 +350,7 @@ ExternalProject_Add(ngtcp2
   SOURCE_DIR "${DEPS_SRC_DIR}/ngtcp2"
   BINARY_DIR "${DEPS_BUILD_DIR}/ngtcp2"
   INSTALL_DIR "${DEPS_INSTALL_DIR}"
-  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${CMAKE_SOURCE_DIR}/patches/ngtcp2.patch"
+  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${_ngtcp2_patch_file}"
   DEPENDS boringssl
   CMAKE_ARGS
     ${_common_cmake_args}
@@ -487,6 +525,13 @@ if(CURL_SUBPROJECT_FORCE_OPENSSL_PATHS)
   )
 endif()
 
+_track_external_project_patch(curl _curl_patch_file _curl_patch_changed)
+if(NOT _curl_patch_changed AND
+   (_brotli_patch_changed OR _boringssl_patch_changed OR
+    _nghttp3_patch_changed OR _ngtcp2_patch_changed))
+  _invalidate_external_project(curl "A curl dependency patch changed")
+endif()
+
 ExternalProject_Add(curl
   LIST_SEPARATOR |
   URL "${CURL_URL}"
@@ -494,7 +539,7 @@ ExternalProject_Add(curl
   SOURCE_DIR "${DEPS_SRC_DIR}/curl"
   BINARY_DIR "${DEPS_BUILD_DIR}/curl"
   INSTALL_DIR "${CMAKE_INSTALL_PREFIX}"
-  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${CMAKE_SOURCE_DIR}/patches/curl.patch"
+  PATCH_COMMAND ${PATCH_EXE} -p1 -i "${_curl_patch_file}"
   DEPENDS ${_curl_deps}
   CONFIGURE_COMMAND
     ${CMAKE_COMMAND} -E env
