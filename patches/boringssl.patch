@@ -226,24 +226,28 @@ index 6b3bb4506..58980e765 100644
  #if defined(__cplusplus)
  } /* extern C */
 diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
-index 5c6d17ad2..30a66681c 100644
+index 5c6d17ad2..a34cd85a7 100644
 --- a/include/openssl/ssl.h
 +++ b/include/openssl/ssl.h
-@@ -1732,6 +1732,13 @@ OPENSSL_EXPORT int SSL_CTX_set_strict_cipher_list(SSL_CTX *ctx,
+@@ -1732,6 +1732,17 @@ OPENSSL_EXPORT int SSL_CTX_set_strict_cipher_list(SSL_CTX *ctx,
  
  // SSL_CTX_set_cipher_list configures the cipher list for `ctx`, evaluating
  // `str` as a cipher string. It returns one on success and zero on failure.
 +
-+// curl-impersonate: set the extension order by given string
++// curl-impersonate: SSL_CTX_set_extension_order configures the ClientHello
++// extension order as a dash-separated list of extension code points. It copies
++// `order` and returns one on success and zero if `order` is invalid or
++// allocation fails.
 +OPENSSL_EXPORT int SSL_CTX_set_extension_order(SSL_CTX *ctx, char *order);
 +
-+// curl-impersonate
++// curl-impersonate: SSL_CTX_set_key_usage_check_enabled configures whether
++// certificate key usage is checked. It returns one.
 +OPENSSL_EXPORT int SSL_CTX_set_key_usage_check_enabled(SSL_CTX *ctx, int enabled);
 +
  //
  // Prefer to use `SSL_CTX_set_strict_cipher_list`. This function tolerates
  // garbage inputs, unless an empty cipher list results.
-@@ -2618,6 +2625,8 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
+@@ -2618,6 +2629,8 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
  #define SSL_GROUP_X25519_MLKEM768 0x11ec
  #define SSL_GROUP_X25519_KYBER768_DRAFT00 0x6399
  #define SSL_GROUP_MLKEM1024 0x0202
@@ -252,20 +256,20 @@ index 5c6d17ad2..30a66681c 100644
  
  // SSL_CTX_set1_group_ids sets the preferred groups for `ctx` to `group_ids`.
  // Each element of `group_ids` should be a unique one of the `SSL_GROUP_*`
-@@ -5536,6 +5545,12 @@ OPENSSL_EXPORT void SSL_CTX_set_permute_extensions(SSL_CTX *ctx, int enabled);
+@@ -5536,6 +5549,12 @@ OPENSSL_EXPORT void SSL_CTX_set_permute_extensions(SSL_CTX *ctx, int enabled);
  // permute extensions. For now, this is only implemented for the ClientHello.
  OPENSSL_EXPORT void SSL_set_permute_extensions(SSL *ssl, int enabled);
  
-+// curl-impersonate
++// curl-impersonate: See SSL_CTX_set_extension_order above.
 +OPENSSL_EXPORT int SSL_CTX_set_extension_order(SSL_CTX *ctx, char *order);
 +
-+// curl-impersonate
++// curl-impersonate: See SSL_CTX_set_key_usage_check_enabled above.
 +OPENSSL_EXPORT int SSL_CTX_set_key_usage_check_enabled(SSL_CTX *ctx, int enabled);
 +
  // SSL_max_seal_overhead returns the maximum overhead, in bytes, of sealing a
  // record with `ssl`.
  OPENSSL_EXPORT size_t SSL_max_seal_overhead(const SSL *ssl);
-@@ -5863,6 +5878,33 @@ OPENSSL_EXPORT int SSL_CTX_set1_sigalgs_list(SSL_CTX *ctx, const char *str);
+@@ -5863,6 +5882,33 @@ OPENSSL_EXPORT int SSL_CTX_set1_sigalgs_list(SSL_CTX *ctx, const char *str);
  // more convenient to codesearch for specific algorithm values.
  OPENSSL_EXPORT int SSL_set1_sigalgs_list(SSL *ssl, const char *str);
  
@@ -299,7 +303,7 @@ index 5c6d17ad2..30a66681c 100644
  #define SSL_set_app_data(s, arg) (SSL_set_ex_data(s, 0, (char *)(arg)))
  #define SSL_get_app_data(s) (SSL_get_ex_data(s, 0))
  #define SSL_SESSION_set_app_data(s, a) \
-@@ -6238,6 +6280,8 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
+@@ -6238,6 +6284,8 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
  #define SSL_CURVE_SECP384R1 SSL_GROUP_SECP384R1
  #define SSL_CURVE_SECP521R1 SSL_GROUP_SECP521R1
  #define SSL_CURVE_X25519 SSL_GROUP_X25519
@@ -392,7 +396,7 @@ index f4b348481..afb56f59b 100644
  #define TLS1_3_RFC_AES_256_GCM_SHA384 "TLS_AES_256_GCM_SHA384"
  #define TLS1_3_RFC_CHACHA20_POLY1305_SHA256 "TLS_CHACHA20_POLY1305_SHA256"
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
-index 022714a3f..63dcf0821 100644
+index 022714a3f..39a45b3e7 100644
 --- a/ssl/extensions.cc
 +++ b/ssl/extensions.cc
 @@ -2383,6 +2383,10 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
@@ -546,21 +550,33 @@ index 022714a3f..63dcf0821 100644
    for (size_t i = 0; i < kNumExtensions; i++) {
      permutation[i] = i;
    }
-@@ -4348,6 +4424,43 @@ static const struct tls_extension *tls_extension_find(uint32_t *out_index,
+@@ -4348,6 +4424,90 @@ static const struct tls_extension *tls_extension_find(uint32_t *out_index,
    return nullptr;
  }
  
++static bool ssl_invalid_extension_order() {
++  OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_COMMAND);
++  return false;
++}
++
 +// curl-impersonate: set customized extension order
 +//
-+// Generate the extension_permutation array from a customized extension order string.
-+//
-+// The customized extension order string is a dash-separated list of extensions.
-+//
-+bool ssl_set_extension_order(SSL_HANDSHAKE *hs) {
-+  if (hs->config->extension_order == nullptr) {
++// Parse a dash-separated list of extension code points into an extension_permutation array.
++bool ssl_parse_extension_order(Array<uint8_t> *out, const char *order_string) {
++  if (order_string == nullptr) {
++    out->Reset();
 +    return true;
 +  }
-+  // fprintf(stderr, "order %s\n", hs->config->extension_order);
++
++  size_t num_entries = order_string[0] == '\0' ? 0 : 1;
++  for (const char *p = order_string; *p != '\0'; p++) {
++    if (*p == '-' && ++num_entries > kNumExtensions) {
++      return ssl_invalid_extension_order();
++    }
++  }
++
++  static_assert(kNumExtensions <= UINT8_MAX,
++                "extension order type is too small");
 +  Array<uint8_t> order;
 +  if (!order.Init(kNumExtensions)) {
 +    return false;
@@ -569,28 +585,63 @@ index 022714a3f..63dcf0821 100644
 +  for (size_t i = 0; i < kNumExtensions; i++) {
 +    order[i] = 255;
 +  }
-+  // split the order string, and put there order in the table
-+  const char *delimiter = "-";
-+  char *tmp = strdup(hs->config->extension_order);
-+  char *ext = strtok(tmp, delimiter);
-+  size_t idx = 0;
-+  while (ext != nullptr) {
-+    unsigned ext_index = 0;
-+    tls_extension_find(&ext_index, atoi(ext));
-+    order[idx] = ext_index;
-+    ext = strtok(NULL, delimiter);
-+    idx++;
-+  }
-+  free(tmp);
 +
-+  hs->extension_permutation = std::move(order);
++  bool seen[kNumExtensions] = {};
++  const char *p = order_string;
++  size_t idx = 0;
++  while (*p != '\0') {
++    if (idx >= order.size() ||
++        !OPENSSL_isdigit(static_cast<unsigned char>(*p))) {
++      return ssl_invalid_extension_order();
++    }
++
++    uint32_t value = 0;
++    do {
++      const uint32_t digit = static_cast<uint32_t>(*p - '0');
++      if (value > (UINT16_MAX - digit) / 10) {
++        return ssl_invalid_extension_order();
++      }
++      value = value * 10 + digit;
++      p++;
++    } while (OPENSSL_isdigit(static_cast<unsigned char>(*p)));
++
++    if (*p != '\0' && *p != '-') {
++      return ssl_invalid_extension_order();
++    }
++
++    uint32_t ext_index;
++    if (tls_extension_find(&ext_index, static_cast<uint16_t>(value)) ==
++            nullptr ||
++        seen[ext_index]) {
++      return ssl_invalid_extension_order();
++    }
++    seen[ext_index] = true;
++    order[idx] = static_cast<uint8_t>(ext_index);
++    idx++;
++
++    if (*p == '-') {
++      p++;
++      if (*p == '\0') {
++        return ssl_invalid_extension_order();
++      }
++    }
++  }
++
++  *out = std::move(order);
 +  return true;
++}
++
++bool ssl_set_extension_order(SSL_HANDSHAKE *hs) {
++  if (hs->config->extension_order.empty()) {
++    return true;
++  }
++  return hs->extension_permutation.CopyFrom(hs->config->extension_order);
 +}
 +
  static bool add_padding_extension(CBB *cbb, uint16_t ext, size_t len) {
    CBB child;
    if (!CBB_add_u16(cbb, ext) ||  //
-@@ -4393,6 +4506,7 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
+@@ -4393,6 +4553,7 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
      size_t i = hs->extension_permutation.empty()
                     ? unpermuted
                     : hs->extension_permutation[unpermuted];
@@ -598,7 +649,7 @@ index 022714a3f..63dcf0821 100644
      const size_t len_before = CBB_len(&extensions);
      const size_t len_compressed_before = CBB_len(compressed.get());
      if (!kExtensions[i].add_clienthello(hs, &extensions, compressed.get(),
-@@ -4506,6 +4620,7 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
+@@ -4506,6 +4667,7 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
      size_t i = hs->extension_permutation.empty()
                     ? unpermuted
                     : hs->extension_permutation[unpermuted];
@@ -607,7 +658,7 @@ index 022714a3f..63dcf0821 100644
      if (!kExtensions[i].add_clienthello(hs, &extensions, &extensions, type)) {
        OPENSSL_PUT_ERROR(SSL, SSL_R_ERROR_ADDING_EXTENSION);
 diff --git a/ssl/handshake_client.cc b/ssl/handshake_client.cc
-index a4a53cda6..6409945fc 100644
+index a4a53cda6..ec1d84bae 100644
 --- a/ssl/handshake_client.cc
 +++ b/ssl/handshake_client.cc
 @@ -26,6 +26,8 @@
@@ -644,7 +695,7 @@ index a4a53cda6..6409945fc 100644
 -                                : EVP_has_aes_hardware();
 +#define TLS13_CIPHER_LEN 74
 +
-+    const char *order = hs->config->cipher_order;
++    const char *order = hs->config->cipher_order.get();
 +    // printf("CIPHER ORDER IS %s\n", order);
 +
 +    // This may seem silly at the first sight, but it's actually faster and easier.
@@ -794,7 +845,7 @@ index a4a53cda6..6409945fc 100644
      CBB child;
      if (!CBB_add_u8_length_prefixed(&body, &child)) {
 diff --git a/ssl/internal.h b/ssl/internal.h
-index 30b2269ad..8cde6821a 100644
+index 30b2269ad..a6154cac3 100644
 --- a/ssl/internal.h
 +++ b/ssl/internal.h
 @@ -217,10 +217,11 @@ BSSL_NAMESPACE_BEGIN
@@ -842,10 +893,14 @@ index 30b2269ad..8cde6821a 100644
    // peer_key is the peer's ECDH key for a TLS 1.2 client.
    Array<uint8_t> peer_key;
  
-@@ -2225,6 +2230,10 @@ UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSLImpl *ssl,
+@@ -2225,6 +2230,14 @@ UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSLImpl *ssl,
  // for `hs`, if applicable. It returns true on success and false on error.
  bool ssl_setup_extension_permutation(SSL_HANDSHAKE *hs);
  
++// curl-impersonate: ssl_parse_extension_order parses the explicit ClientHello
++// extension order into `out`. It returns true on success and false on error.
++bool ssl_parse_extension_order(Array<uint8_t> *out, const char *order);
++
 +// ssl_set_extension_order applies the fork-specific explicit ClientHello
 +// extension order, when configured.
 +bool ssl_set_extension_order(SSL_HANDSHAKE *hs);
@@ -853,15 +908,15 @@ index 30b2269ad..8cde6821a 100644
  // ssl_setup_pre_shared_keys computes the offered client PSKs and saves them in
  // `hs`. It returns true on success and false on failure.
  bool ssl_setup_pre_shared_keys(SSL_HANDSHAKE *hs);
-@@ -3373,6 +3382,15 @@ struct SSL_CONFIG {
+@@ -3373,6 +3386,15 @@ struct SSL_CONFIG {
    // crypto
    UniquePtr<SSLCipherPreferenceList> cipher_list;
  
 +  // curl-impersonate
-+  char *extension_order = nullptr;
++  Array<uint8_t> extension_order;
 +
 +  // curl-impersonate
-+  const char *cipher_order = nullptr;
++  UniquePtr<char> cipher_order;
 +
 +  // curl-impersonate
 +  int key_usage_check_enabled = 1;
@@ -869,7 +924,7 @@ index 30b2269ad..8cde6821a 100644
    // This is used to hold the local certificate used (i.e. the server
    // certificate for a server or the client certificate for a client).
    UniquePtr<CERT> cert;
-@@ -3454,6 +3472,10 @@ struct SSL_CONFIG {
+@@ -3454,6 +3476,10 @@ struct SSL_CONFIG {
    // accepted from the peer in decreasing order of preference.
    Array<uint16_t> verify_sigalgs;
  
@@ -880,7 +935,7 @@ index 30b2269ad..8cde6821a 100644
    // srtp_profiles is the list of configured SRTP protection profiles for
    // DTLS-SRTP.
    UniquePtr<STACK_OF(SRTP_PROTECTION_PROFILE)> srtp_profiles;
-@@ -3532,6 +3554,14 @@ struct SSL_CONFIG {
+@@ -3532,6 +3558,14 @@ struct SSL_CONFIG {
    // hardware support, and use the value in aes_hw_override_value instead.
    bool aes_hw_override : 1;
  
@@ -895,15 +950,15 @@ index 30b2269ad..8cde6821a 100644
    // aes_hw_override_value is used for testing to indicate the support or lack
    // of support for AES hw. The value is only considered if `aes_hw_override` is
    // true.
-@@ -3913,6 +3943,15 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
+@@ -3913,6 +3947,15 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
  
    UniquePtr<SSLCipherPreferenceList> cipher_list;
  
 +  // curl-impersonate
-+  char *extension_order = nullptr;
++  Array<uint8_t> extension_order;
 +
 +  // curl-impersonate
-+  const char *cipher_order = nullptr;
++  UniquePtr<char> cipher_order;
 +
 +  // curl-impersonate
 +  int key_usage_check_enabled = 1;
@@ -911,7 +966,7 @@ index 30b2269ad..8cde6821a 100644
    X509_STORE *cert_store = nullptr;
    LHASH_OF(SSL_SESSION) *sessions = nullptr;
    // Most session-ids that will be cached, default is
-@@ -4147,6 +4186,10 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
+@@ -4147,6 +4190,10 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
    // available_client_cert_types inherited by SSL struct.
    InplaceVector<uint8_t, kNumCertTypes> available_client_cert_types;
  
@@ -922,7 +977,7 @@ index 30b2269ad..8cde6821a 100644
    // retain_only_sha256_of_client_certs is true if we should compute the SHA256
    // hash of the peer's certificate and then discard it to save memory and
    // session space. Only effective on the server side.
-@@ -4208,6 +4251,13 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
+@@ -4208,6 +4255,13 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
    // signal its sessions may be resumed across names in the server certificate.
    bool resumption_across_names_enabled : 1;
  
@@ -1218,39 +1273,79 @@ index 5923110e7..f50079930 100644
  
  static_assert(std::size(kNamedGroups) == kNumNamedGroups,
 diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
-index e05f91bd9..56bcfd5b1 100644
+index e05f91bd9..ff0d1021c 100644
 --- a/ssl/ssl_lib.cc
 +++ b/ssl/ssl_lib.cc
-@@ -530,6 +530,11 @@ SSL *SSL_new(SSL_CTX *ctx) {
+@@ -530,6 +530,17 @@ SSL *SSL_new(SSL_CTX *ctx) {
    ssl->config->aes_hw_override = ctx_impl->aes_hw_override;
    ssl->config->aes_hw_override_value = ctx_impl->aes_hw_override_value;
    ssl->config->compliance_policy = ctx_impl->compliance_policy;
-+  ssl->config->extension_order = ctx_impl->extension_order;
-+  ssl->config->cipher_order = ctx_impl->cipher_order;
 +  ssl->config->key_usage_check_enabled = ctx_impl->key_usage_check_enabled;
 +  ssl->config->record_size_limit = ctx_impl->record_size_limit;
 +  ssl->config->key_shares_limit = ctx_impl->key_shares_limit;
++
++  if (ctx_impl->cipher_order != nullptr) {
++    ssl->config->cipher_order.reset(
++        OPENSSL_strdup(ctx_impl->cipher_order.get()));
++    if (ssl->config->cipher_order == nullptr) {
++      return nullptr;
++    }
++  }
  
    if (!ssl->config->supported_group_list.CopyFrom(
            ctx_impl->supported_group_list) ||
-@@ -538,6 +543,8 @@ SSL *SSL_new(SSL_CTX *ctx) {
+@@ -538,6 +549,9 @@ SSL *SSL_new(SSL_CTX *ctx) {
        !ssl->config->alpn_client_proto_list.CopyFrom(
            ctx_impl->alpn_client_proto_list) ||
        !ssl->config->verify_sigalgs.CopyFrom(ctx_impl->verify_sigalgs) ||
++      !ssl->config->extension_order.CopyFrom(ctx_impl->extension_order) ||
 +      !ssl->config->delegated_credentials.CopyFrom(
 +          ctx_impl->delegated_credentials) ||
        !ssl->config->accepted_peer_cert_types.TryCopyFrom(
            ctx_impl->accepted_peer_cert_types) ||
        !ssl->config->available_client_cert_types.TryCopyFrom(
-@@ -2211,6 +2218,7 @@ int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str) {
+@@ -2206,22 +2220,31 @@ const char *SSL_get_cipher_list(const SSL *ssl, int n) {
+   return c->name;
+ }
+ 
+-int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str) {
++static int ssl_ctx_set_cipher_list(SSL_CTX *ctx, const char *str,
++                                   bool strict) {
++  if (str == nullptr) {
++    return 0;
++  }
+   auto *ctx_impl = FromOpaque(ctx);
    const bool has_aes_hw = ctx_impl->aes_hw_override
                                ? ctx_impl->aes_hw_override_value
                                : EVP_has_aes_hardware();
-+  ctx_impl->cipher_order = str;
-   return ssl_create_cipher_list(&ctx_impl->cipher_list, has_aes_hw, str,
-                                 false /* not strict */);
+-  return ssl_create_cipher_list(&ctx_impl->cipher_list, has_aes_hw, str,
+-                                false /* not strict */);
++  UniquePtr<char> cipher_order(OPENSSL_strdup(str));
++  if (cipher_order == nullptr ||
++      !ssl_create_cipher_list(&ctx_impl->cipher_list, has_aes_hw, str,
++                              strict)) {
++    return 0;
++  }
++  ctx_impl->cipher_order = std::move(cipher_order);
++  return 1;
++}
++
++int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str) {
++  return ssl_ctx_set_cipher_list(ctx, str, false /* not strict */);
  }
-@@ -2313,6 +2321,30 @@ void SSL_enable_ocsp_stapling(SSL *ssl) {
+ 
+ int SSL_CTX_set_strict_cipher_list(SSL_CTX *ctx, const char *str) {
+-  auto *ctx_impl = FromOpaque(ctx);
+-  const bool has_aes_hw = ctx_impl->aes_hw_override
+-                              ? ctx_impl->aes_hw_override_value
+-                              : EVP_has_aes_hardware();
+-  return ssl_create_cipher_list(&ctx_impl->cipher_list, has_aes_hw, str,
+-                                true /* strict */);
++  return ssl_ctx_set_cipher_list(ctx, str, true /* strict */);
+ }
+ 
+ int SSL_set_cipher_list(SSL *ssl, const char *str) {
+@@ -2313,6 +2336,30 @@ void SSL_enable_ocsp_stapling(SSL *ssl) {
    ssl_impl->config->ocsp_stapling_enabled = true;
  }
  
@@ -1281,14 +1376,18 @@ index e05f91bd9..56bcfd5b1 100644
  void SSL_get0_signed_cert_timestamp_list(const SSL *ssl, const uint8_t **out,
                                           size_t *out_len) {
    SSL_SESSION *session = SSL_get_session(ssl);
-@@ -3281,6 +3313,17 @@ void SSL_CTX_set_permute_extensions(SSL_CTX *ctx, int enabled) {
+@@ -3281,6 +3328,21 @@ void SSL_CTX_set_permute_extensions(SSL_CTX *ctx, int enabled) {
    FromOpaque(ctx)->permute_extensions = !!enabled;
  }
  
 +// curl-impersonate: set extensions order
 +int SSL_CTX_set_extension_order(SSL_CTX *ctx, char *order) {
-+  FromOpaque(ctx)->extension_order = order;
-+  return 0;
++  Array<uint8_t> parsed_order;
++  if (!ssl_parse_extension_order(&parsed_order, order)) {
++    return 0;
++  }
++  FromOpaque(ctx)->extension_order = std::move(parsed_order);
++  return 1;
 +}
 +
 +int SSL_CTX_set_key_usage_check_enabled(SSL_CTX *ctx, int enabled) {
