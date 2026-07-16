@@ -245,6 +245,10 @@ set(_boringssl_c_flags "${CMAKE_C_FLAGS}")
 string(APPEND _boringssl_c_flags " -Wno-unknown-warning-option -Wno-stringop-overflow -Wno-array-bounds -Wno-macro-redefined")
 set(_boringssl_cxx_flags "${CMAKE_CXX_FLAGS}")
 string(APPEND _boringssl_cxx_flags " -Wno-macro-redefined")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  # Keep release archives independent of the build host's C++ runtime ABI.
+  string(APPEND _boringssl_cxx_flags " -fno-exceptions -fno-rtti")
+endif()
 
 set(_boringssl_cmake_args
   ${_common_cmake_args}
