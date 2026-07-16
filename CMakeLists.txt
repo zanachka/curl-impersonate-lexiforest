@@ -75,6 +75,8 @@ option(USE_LIBIDN2 "Build and use libidn2/libunistring for IDN support" ${_use_l
 option(CURL_SUBPROJECT_FORCE_OPENSSL_PATHS
   "Pass explicit OPENSSL_* paths to the curl subproject"
   ON)
+set(CURL_IMPERSONATE_CXX_RUNTIME_LIBRARY "stdc++" CACHE STRING
+  "C++ runtime library used to link static BoringSSL")
 set(CURL_CA_BUNDLE "" CACHE STRING "CA bundle for curl ('auto', 'none', or full path)")
 set(CURL_CA_PATH "" CACHE STRING "CA directory for curl ('auto', 'none', or full path)")
 
@@ -245,10 +247,6 @@ set(_boringssl_c_flags "${CMAKE_C_FLAGS}")
 string(APPEND _boringssl_c_flags " -Wno-unknown-warning-option -Wno-stringop-overflow -Wno-array-bounds -Wno-macro-redefined")
 set(_boringssl_cxx_flags "${CMAKE_CXX_FLAGS}")
 string(APPEND _boringssl_cxx_flags " -Wno-macro-redefined")
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  # Keep release archives independent of the build host's C++ runtime ABI.
-  string(APPEND _boringssl_cxx_flags " -fno-exceptions -fno-rtti")
-endif()
 
 set(_boringssl_cmake_args
   ${_common_cmake_args}
@@ -503,12 +501,12 @@ if(CMAKE_MSVC_RUNTIME_LIBRARY)
   list(APPEND _curl_platform_flags "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}")
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  # Static BoringSSL is C++. Force stdc++ retention even when link flags are
-  # evaluated before static OpenSSL archives.
+  # Static BoringSSL is C++. Retain its runtime even when link flags are
+  # evaluated before the OpenSSL archives.
   set(_curl_exe_linker_flags "${CMAKE_EXE_LINKER_FLAGS}")
   set(_curl_shared_linker_flags "${CMAKE_SHARED_LINKER_FLAGS}")
-  string(APPEND _curl_exe_linker_flags " -Wl,--no-as-needed -lstdc++ -Wl,--as-needed")
-  string(APPEND _curl_shared_linker_flags " -Wl,--no-as-needed -lstdc++ -Wl,--as-needed")
+  string(APPEND _curl_exe_linker_flags " -Wl,--no-as-needed -l${CURL_IMPERSONATE_CXX_RUNTIME_LIBRARY} -Wl,--as-needed")
+  string(APPEND _curl_shared_linker_flags " -Wl,--no-as-needed -l${CURL_IMPERSONATE_CXX_RUNTIME_LIBRARY} -Wl,--as-needed")
   string(STRIP "${_curl_exe_linker_flags}" _curl_exe_linker_flags)
   string(STRIP "${_curl_shared_linker_flags}" _curl_shared_linker_flags)
   list(APPEND _curl_platform_flags "-DCMAKE_EXE_LINKER_FLAGS=${_curl_exe_linker_flags}")

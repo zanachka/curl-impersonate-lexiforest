@@ -225,6 +225,7 @@ jobs:
           cmake_args="-G Ninja -DCMAKE_INSTALL_PREFIX=$install_dir"
           if [[ "${{ matrix.platform }}" == "linux" ]]; then
             cmake_args="$cmake_args -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }}"
+            cmake_args="$cmake_args -DCURL_IMPERSONATE_CXX_RUNTIME_LIBRARY=c++"
             cmake_args="$cmake_args -DCURL_CA_PATH=/etc/ssl/certs -DCURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt"
           elif [[ "${{ matrix.platform }}" == "android" ]]; then
             case "${{ matrix.arch }}" in
@@ -292,10 +293,36 @@ jobs:
           fi
           if [[ "${{ runner.os }}" == "macOS" || "${{ matrix.platform }}" == "ios" ]]; then
             libtool -static -o libcurl-impersonate.a $lib_list
+          elif [[ "${{ matrix.platform }}" == "linux" ]]; then
+            # Zig omits its implicit C++ runtime for relocatable links. Ask it
+            # for the target-specific runtime archives, then merge only the
+            # members needed by BoringSSL into the release archive.
+            cxx_link="$($CXX -### -shared -o libcurl-impersonate.runtime-probe.so libcurl-impersonate.orig.a 2>&1)"
+            libcxx="$(printf '%s\n' "$cxx_link" | grep -oE '/[^[:space:]]+/libc\+\+\.a' | head -n 1)"
+            libcxxabi="$(printf '%s\n' "$cxx_link" | grep -oE '/[^[:space:]]+/libc\+\+abi\.a' | head -n 1)"
+            libunwind="$(printf '%s\n' "$cxx_link" | grep -oE '/[^[:space:]]+/libunwind\.a' | head -n 1)"
+            if [[ ! -f "$libcxx" || ! -f "$libcxxabi" || ! -f "$libunwind" ]]; then
+              echo "Unable to locate Zig's target-specific C++ runtime archives" >&2
+              echo "$cxx_link" >&2
+              exit 1
+            fi
+            $CC -r -o libcurl-impersonate.full.o \
+              -Wl,--whole-archive $lib_list -Wl,--no-whole-archive \
+              -Wl,--start-group "$libcxx" "$libcxxabi" "$libunwind" -Wl,--end-group
+            $AR rcs libcurl-impersonate.a libcurl-impersonate.full.o
+            rm -f libcurl-impersonate.full.o
           else
             $CC -r -o libcurl-impersonate.full.o -Wl,--whole-archive $lib_list -Wl,--no-whole-archive
             ar rcs libcurl-impersonate.a libcurl-impersonate.full.o
             rm -f libcurl-impersonate.full.o
+          fi
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
+            unresolved_cxx="$(nm -u libcurl-impersonate.a | grep -E '[[:space:]]U (_Z|__cxa|__gxx|_Unwind)' || true)"
+            if [[ -n "$unresolved_cxx" ]]; then
+              echo "Unresolved C++ runtime symbols in libcurl-impersonate.a:" >&2
+              echo "$unresolved_cxx" >&2
+              exit 1
+            fi
           fi
           rm -f libz.a libzstd.a libbrotlidec.a libbrotlicommon.a libbrotlienc.a libnghttp2.a libnghttp3.a libngtcp2.a libngtcp2_crypto_boringssl.a libssl.a libcrypto.a libidn2.a
           rm -f libcurl-impersonate.orig.a
