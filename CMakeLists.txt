@@ -613,6 +613,7 @@ ExternalProject_Add(curl
       -DZSTD_LIBRARY=${_curl_zstd_library}
       -DUSE_NGHTTP2=ON
       -DUSE_NGTCP2=ON
+      -DUSE_PROXY_HTTP3=ON
       -DCURL_DISABLE_LDAP=ON
       -DCURL_DISABLE_LDAPS=ON
       # XXX: psl should be enabled in the future:
@@ -694,33 +695,13 @@ endif()
 if(_curl_wrapper_scripts)
   install(PROGRAMS ${_curl_wrapper_scripts} DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
-function(_install_dependency_license project license_file output_name)
-  install(
-    FILES "${DEPS_SRC_DIR}/${project}/${license_file}"
-    DESTINATION "."
-    RENAME "${output_name}"
-  )
-endfunction()
 
-install(FILES "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION ".")
-_install_dependency_license(boringssl LICENSE LICENSE_BORINGSSL)
-_install_dependency_license(brotli LICENSE LICENSE_BROTLI)
-_install_dependency_license(curl COPYING LICENSE_CURL)
-_install_dependency_license(nghttp2 COPYING LICENSE_NGHTTP2)
-_install_dependency_license(nghttp3 COPYING LICENSE_NGHTTP3)
-_install_dependency_license(ngtcp2 COPYING LICENSE_NGTCP2)
-_install_dependency_license(zlib LICENSE LICENSE_ZLIB)
-_install_dependency_license(zstd LICENSE LICENSE_ZSTD)
-if(USE_LIBIDN2)
-  _install_dependency_license(libidn2 COPYING LICENSE_LIBIDN2_GPL3)
-  _install_dependency_license(libidn2 COPYINGv2 LICENSE_LIBIDN2_GPL2)
-  _install_dependency_license(
-    libidn2 COPYING.LESSERv3 LICENSE_LIBIDN2_LGPL3
-  )
-  _install_dependency_license(
-    libidn2 COPYING.unicode LICENSE_LIBIDN2_UNICODE
-  )
-endif()
+# Release workflows collect licenses separately from installation.
+configure_file(
+  "${CMAKE_SOURCE_DIR}/cmake/CollectLicenses.cmake.in"
+  "${CMAKE_BINARY_DIR}/CollectLicenses.cmake"
+  @ONLY
+)
 
 configure_file(
   "${CMAKE_SOURCE_DIR}/cmake/Uninstall.cmake.in"
