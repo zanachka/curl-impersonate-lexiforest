@@ -122,23 +122,25 @@ index 503074a0a0..01c61aa131 100644
      if(${_curl_test})
        set(${_curl_test} 1 CACHE INTERNAL "curl test")
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 693d93d014..3e5a69b6fd 100644
+index 693d93d014..25a7f41b13 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -66,6 +66,13 @@ project(CURL
+@@ -64,7 +64,14 @@ string(REGEX REPLACE "([0-9]+\.[0-9]+\.[0-9]+).+" "\\1" _curl_version_sem "${_cu
+ # Initializes PROJECT_BINARY_DIR, PROJECT_SOURCE_DIR
+ project(CURL
    VERSION "${_curl_version_sem}"
-   LANGUAGES C)
- 
+-  LANGUAGES C)
++  LANGUAGES C CXX)
++
 +set(CURL_IMPERSONATE_VERSION "local" CACHE STRING
 +  "curl-impersonate version reported by curl_version()")
 +string(TIMESTAMP CURL_IMPERSONATE_BUILD_DATE "%Y-%m-%d" UTC)
 +add_compile_definitions(
 +  "CURL_IMPERSONATE_VERSION=\"${CURL_IMPERSONATE_VERSION}\""
 +  "CURL_IMPERSONATE_BUILD_DATE=\"${CURL_IMPERSONATE_BUILD_DATE}\"")
-+
+ 
  # CMake does not recognize some targets accurately. Touch up configuration manually as a workaround.
  if(WINDOWS_STORE AND MINGW)  # MinGW UWP build
-   # CMake (as of 3.31.2) gets confused and applies the MSVC rc.exe command-line
 @@ -154,8 +161,8 @@ if(CURL_PATCHSTAMP)
    set(CURL_PATCHSTAMP "\"${CURL_PATCHSTAMP}\"")
  endif()
@@ -1102,6 +1104,18 @@ index f2e4542772..f10923f4d8 100644
  
  /* true if info expects a pointer to struct curl_tlssessioninfo * argument */
  #define curlcheck_tlssessioninfo_info(info)                             \
+diff --git a/lib/CMakeLists.txt b/lib/CMakeLists.txt
+index c202a6c6d7..0df9186d5d 100644
+--- a/lib/CMakeLists.txt
++++ b/lib/CMakeLists.txt
+@@ -213,6 +213,7 @@ if(BUILD_SHARED_LIBS)
+     IMPORT_PREFIX "" IMPORT_SUFFIX "${IMPORT_LIB_SUFFIX}${CMAKE_IMPORT_LIBRARY_SUFFIX}"
+     POSITION_INDEPENDENT_CODE ON)
+   set_property(TARGET ${LIB_SHARED} APPEND PROPERTY COMPILE_OPTIONS "${CURL_CFLAGS}")
++  set_property(TARGET ${LIB_SHARED} APPEND PROPERTY LINKER_LANGUAGE CXX)
+   if(CURL_HIDES_PRIVATE_SYMBOLS)
+     set_property(TARGET ${LIB_SHARED} APPEND PROPERTY COMPILE_OPTIONS "${CURL_CFLAG_SYMBOLS_HIDE}")
+     set_property(TARGET ${LIB_SHARED} APPEND PROPERTY COMPILE_DEFINITIONS "CURL_HIDDEN_SYMBOLS")
 diff --git a/lib/Makefile.am b/lib/Makefile.am
 index 9a3189ce81..2b6c4255a6 100644
 --- a/lib/Makefile.am
@@ -11170,7 +11184,7 @@ index 5fb68275ef..fca6f6c587 100755
      # Store version to check if it supports --no-clobber, --parallel and --parallel-max-host.
      curl_version=$($CMD --version | cut -f2 -d' ' | head -n1)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 1f76839009..b5fc35f8a2 100644
+index 1f76839009..c4beaa806f 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -21,7 +21,7 @@
@@ -11182,6 +11196,14 @@ index 1f76839009..b5fc35f8a2 100644
  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS "${CURL_DEBUG_MACROS}")
  
  set(_curl_cfiles_gen "")
+@@ -102,6 +102,7 @@ add_executable(${EXE_NAME} ${CURL_CFILES} ${CURL_HFILES} ${_curl_cfiles_gen} ${_
+ target_compile_definitions(${EXE_NAME} PRIVATE ${_curl_definitions})
+ target_link_libraries(${EXE_NAME} ${LIB_SELECTED_FOR_EXE} ${CURL_LIBS})
+ set_property(TARGET ${EXE_NAME} APPEND PROPERTY COMPILE_OPTIONS "${CURL_CFLAGS}")
++set_property(TARGET ${EXE_NAME} APPEND PROPERTY LINKER_LANGUAGE CXX)
+ if(WIN32)
+   set_property(TARGET ${EXE_NAME} APPEND PROPERTY SOURCES ${CURL_RCFILES})
+ endif()
 diff --git a/src/Makefile.am b/src/Makefile.am
 index 69554ee490..d0052604bd 100644
 --- a/src/Makefile.am
